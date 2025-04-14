@@ -295,7 +295,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: "deepseek/deepseek-chat-v3-0324:free",
+                model: `${DEFAULT_MODEL}`,
                 messages: messages,
                 temperature: 0.7
             })
