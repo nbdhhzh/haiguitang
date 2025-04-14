@@ -6,21 +6,65 @@ document.addEventListener('DOMContentLoaded', function() {
     const newPuzzleBtn = document.getElementById('new-puzzle');
     const getHintBtn = document.getElementById('get-hint');
     const solveBtn = document.getElementById('solve');
+    const resetBtn = document.createElement('button');
+    resetBtn.textContent = '清空重来';
+    resetBtn.id = 'reset';
+    document.querySelector('.controls').appendChild(resetBtn);
     
     let currentPuzzle = null;
     let currentPuzzleFile = null;
     let cluesGiven = [];
-    
+
+    // 保存状态到localStorage
+    function saveState() {
+        localStorage.setItem('hgtState', JSON.stringify({
+            puzzle: currentPuzzle,
+            file: currentPuzzleFile,
+            clues: cluesGiven,
+            chatHistory: document.getElementById('puzzle-display').innerHTML
+        }));
+    }
+
+    // 从localStorage恢复状态
+    function restoreState() {
+        const saved = localStorage.getItem('hgtState');
+        if (saved) {
+            try {
+                const state = JSON.parse(saved);
+                currentPuzzle = state.puzzle;
+                currentPuzzleFile = state.file;
+                cluesGiven = state.clues || [];
+                document.getElementById('puzzle-display').innerHTML = state.chatHistory || '';
+                return true;
+            } catch (e) {
+                console.error('恢复状态失败:', e);
+                localStorage.removeItem('hgtState');
+            }
+        }
+        return false;
+    }
+
+    // 清空按钮事件
+    resetBtn.addEventListener('click', () => {
+        localStorage.removeItem('hgtState');
+        if (currentPuzzleFile) {
+            loadPuzzle(currentPuzzleFile);
+        } else {
+            loadRandomPuzzle();
+        }
+    });
+
     // 新谜题按钮
-    newPuzzleBtn.addEventListener('click', loadRandomPuzzle);
+    newPuzzleBtn.addEventListener('click', () => {
+        localStorage.removeItem('hgtState');
+        loadRandomPuzzle();
+    });
     
     // 获取提示按钮
     getHintBtn.addEventListener('click', async () => {
         if (!currentPuzzle) return;
         
-        // 显示等待状态
         const waitingSpan = addMessage('获取提示中...', 'bot');
-        // 锁定UI
         lockUI();
         
         try {
@@ -33,7 +77,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 { role: "user", content: "请给我一个提示" }
             ]);
             
-            // 替换等待消息为实际提示
             const container = document.createElement('div');
             container.className = 'message-container';
             
@@ -43,11 +86,10 @@ document.addEventListener('DOMContentLoaded', function() {
             container.appendChild(responseSpan);
             
             waitingSpan.parentNode.replaceChild(container, waitingSpan);
+            saveState();
         } catch (error) {
-            // 替换等待消息为错误信息
             addMessage(`获取提示失败: ${error.message}`, 'error', waitingSpan.id);
         } finally {
-            // 解锁UI
             unlockUI();
         }
     });
@@ -59,6 +101,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const solutionMatch = currentPuzzle.match(/### 汤底([\s\S]*?)(###|$)/);
         if (solutionMatch) {
             addMessage('谜底：' + solutionMatch[1].trim(), 'bot');
+            saveState();
         }
     });
 
@@ -77,35 +120,31 @@ document.addEventListener('DOMContentLoaded', function() {
         userInput.focus();
     }
     
-    // 加载随机谜题
-    loadRandomPuzzle();
+    // 从URL参数获取puzzle文件名
+    const urlParams = new URLSearchParams(window.location.search);
+    const puzzleFile = urlParams.get('puzzle');
     
-    async function loadRandomPuzzle() {
+    // 尝试恢复状态，失败则加载新谜题
+    if (!restoreState()) {
+        if (puzzleFile) {
+            loadPuzzle(puzzleFile);
+        } else {
+            loadRandomPuzzle();
+        }
+    }
+    
+    async function loadPuzzle(fileName) {
         try {
-            const puzzleFiles = [
-                '100元钱.md', '保龄球.md', '免费的大餐.md', '关灯之后.md',
-                '最棒的一天.md', '对赌.md', '延迟死亡.md', '忠诚的狗.md',
-                '怀孕.md', '手滑.md', '挑衅.md', '捉迷藏.md', '捉迷藏2.md',
-                '接连死去的哥哥.md', '日访三十国.md', '杀人早餐.md',
-                '杀妻后自杀.md', '死亡直播.md', '水池中的死者.md', '治病.md',
-                '爱犬.md', '生意.md', '电梯里的人.md', '看病.md',
-                '看起来没那么严重.md', '祭日.md', '私人医生.md', '脚步声.md',
-                '自相残杀.md', '街上的工作.md', '裤子破了.md', '要好的朋友.md',
-                '要水拿枪.md', '车头灯关闭.md', '长路终有归途.md'
-            ];
-            
-            const randomFile = puzzleFiles[Math.floor(Math.random() * puzzleFiles.length)];
-            const response = await fetch(`puzzles/${randomFile}`);
+            const response = await fetch(`puzzles/${fileName}`);
             currentPuzzle = await response.text();
+            currentPuzzleFile = fileName;
             
             const puzzleMatch = currentPuzzle.match(/### 汤面([\s\S]*?)### 汤底/);
             const puzzleText = puzzleMatch ? puzzleMatch[1].trim() : currentPuzzle.split('### 汤底')[0].trim();
-            const puzzleName = randomFile.replace('.md', '');
+            const puzzleName = fileName.replace('.md', '');
             
-            // 清空容器
             chatContainer.innerHTML = '';
             
-            // 添加谜题标题和内容
             const puzzleDiv = document.createElement('div');
             puzzleDiv.className = 'puzzle-section';
             puzzleDiv.innerHTML = `
@@ -114,7 +153,6 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             chatContainer.appendChild(puzzleDiv);
             
-            // 添加交互提示
             const hintDiv = document.createElement('div');
             hintDiv.className = 'hint-section';
             hintDiv.innerHTML = `
@@ -123,8 +161,31 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             chatContainer.appendChild(hintDiv);
             cluesGiven = [];
+            saveState();
         } catch (error) {
             chatContainer.innerHTML = `<div class="error">加载谜题失败: ${error.message}</div>`;
+        }
+    }
+    
+    async function loadRandomPuzzle() {
+        try {
+            const response = await fetch('puzzles/');
+            const text = await response.text();
+            
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(text, 'text/html');
+            const links = htmlDoc.querySelectorAll('a[href$=".md"]');
+            
+            if (links.length === 0) {
+                throw new Error('没有找到任何谜题文件');
+            }
+            
+            const randomIndex = Math.floor(Math.random() * links.length);
+            const randomFile = links[randomIndex].getAttribute('href');
+            
+            await loadPuzzle(randomFile);
+        } catch (error) {
+            chatContainer.innerHTML = `<div class="error">加载随机谜题失败: ${error.message}</div>`;
         }
     }
 
@@ -133,9 +194,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const input = userInput.value.trim();
         if (!input) return;
         
-        // 显示用户输入和等待状态
         const waitingSpan = addMessage(input, 'user');
-        // 锁定UI
         lockUI();
         
         try {
@@ -145,13 +204,11 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 response = await answerQuestion(input);
             }
-            // 替换等待消息为实际回复
             addMessage(response, 'bot', waitingSpan.id);
+            saveState();
         } catch (error) {
-            // 替换等待消息为错误信息
             addMessage(`处理失败: ${error.message}`, 'error', 'waiting-message');
         } finally {
-            // 解锁UI
             unlockUI();
             userInput.value = '';
         }
@@ -173,13 +230,11 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const response = await callOpenRouterAPI(messages);
             
-            // 存储完整response到全局变量方便调试
             window.lastAPIResponse = {
                 request: messages,
                 response: response
             };
             
-            // 从response中提取{}内的回答
             const answerMatch = response.match(/\{(.*?)\}/);
             const answer = answerMatch ? answerMatch[1] : response;
             
@@ -193,7 +248,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // 验证谜底
     async function checkSolution(solution) {
         try {
-
             const messages = [
                 {
                     role: "system", content: `你是一个海龟汤游戏主持人，根据以下谜题验证猜题者的答案：
@@ -206,18 +260,15 @@ document.addEventListener('DOMContentLoaded', function() {
             ];
 
             const response = await callOpenRouterAPI(messages);
-            // 存储完整response到全局变量方便调试
             window.lastAPIResponse = {
                 request: messages,
                 response: response
             };
             
-            // 从response中提取{}内的判断
             const resultMatch = response.match(/\{(.*?)\}/);
             const result = resultMatch ? resultMatch[1] : response;
             
             if (result === '完全正确') {
-                // 创建完全正确消息
                 const correctDiv = document.createElement('div');
                 correctDiv.innerHTML = `
                     <span style="font-weight:bold;color:green">完全正确！！！</span>
@@ -263,13 +314,11 @@ document.addEventListener('DOMContentLoaded', function() {
         container.className = 'message-container';
         
         if (type === 'user') {
-            // 用户消息
             const userSpan = document.createElement('span');
             userSpan.className = 'user-message';
             userSpan.textContent = text;
             container.appendChild(userSpan);
             
-            // 添加等待指示器(使用时间戳确保唯一ID)
             const waitingSpan = document.createElement('span');
             waitingSpan.className = 'waiting-message';
             waitingSpan.id = `waiting-${Date.now()}`;
@@ -280,7 +329,6 @@ document.addEventListener('DOMContentLoaded', function() {
             chatContainer.scrollTop = chatContainer.scrollHeight;
             return waitingSpan;
         } else {
-            // 处理AI回复
             let responseClass = '';
             const trimmedText = text.trim();
             if (trimmedText === '是') {
@@ -292,17 +340,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             if (replaceId) {
-                // 替换等待消息
                 const waitingElement = document.getElementById(replaceId);
                 if (waitingElement) {
-                    // 获取父容器
                     const container = waitingElement.parentNode;
-                    // 创建新的回复元素
                     const responseSpan = document.createElement('span');
                     responseSpan.className = responseClass;
                     responseSpan.textContent = ` - ${text}`;
                     
-                    // 添加隐藏的完整response调试信息(仅通过查看源代码可见)
                     if (window.lastAPIResponse) {
                         const debugDiv = document.createElement('div');
                         debugDiv.style.display = 'none';
@@ -310,20 +354,17 @@ document.addEventListener('DOMContentLoaded', function() {
                         container.appendChild(debugDiv);
                     }
                     
-                    // 替换等待消息
                     container.replaceChild(responseSpan, waitingElement);
                     chatContainer.scrollTop = chatContainer.scrollHeight;
                     return responseSpan;
                 }
             }
             
-            // 独立AI消息
             const responseSpan = document.createElement('span');
             responseSpan.className = responseClass;
             responseSpan.textContent = text;
             container.appendChild(responseSpan);
             
-            // 添加隐藏的完整response调试信息(仅通过查看源代码可见)
             if (window.lastAPIResponse) {
                 const debugDiv = document.createElement('div');
                 debugDiv.style.display = 'none';
@@ -336,5 +377,4 @@ document.addEventListener('DOMContentLoaded', function() {
             return container;
         }
     }
-
 });

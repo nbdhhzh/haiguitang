@@ -3,8 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>海龟汤AI助手</title>
+    <title>海龟汤游戏选择</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .game-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+        .game-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .game-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .game-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .game-preview {
+            color: #666;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+        }
+        header {
+            background-color: #2c3e50;
+            padding: 15px 0;
+            margin-bottom: 20px;
+            color: white;
+        }
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+        .logo {
+            height: 40px;
+        }
+        .group-name {
+            color: white;
+            font-size: 1.2em;
+        }
+    </style>
 </head>
 <body>
     <header>
@@ -14,21 +65,87 @@
         </div>
     </header>
     <div class="container">
-        <h1>海龟汤AI助手</h1>
-        <div class="puzzle-container">
-            <div id="puzzle-display"></div>
-            <div class="controls">
-                <button id="new-puzzle">新谜题</button>
-                <button id="get-hint">获取提示</button>
-                <button id="solve">解答</button>
-            </div>
-            <div class="user-input">
-                <input type="text" id="user-guess" placeholder="输入你的猜测...">
-                <button id="submit-guess">提交</button>
-            </div>
+        <h1>选择海龟汤谜题</h1>
+        <div id="game-list" class="game-list">
+            <!-- 游戏列表将通过JS动态加载 -->
         </div>
     </div>
-    <script src="config.js"></script>
-    <script src="app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
+            const gameList = document.getElementById('game-list');
+            
+            try {
+                // 获取所有谜题数据
+                const puzzles = await Promise.all([
+                    {name: '100元钱', file: '100元钱.md'},
+                    {name: '保龄球', file: '保龄球.md'},
+                    {name: '免费的大餐', file: '免费的大餐.md'},
+                    {name: '关灯之后', file: '关灯之后.md'},
+                    {name: '最棒的一天', file: '最棒的一天.md'},
+                    {name: '对赌', file: '对赌.md'},
+                    {name: '延迟死亡', file: '延迟死亡.md'},
+                    {name: '忠诚的狗', file: '忠诚的狗.md'},
+                    {name: '怀孕', file: '怀孕.md'},
+                    {name: '手滑', file: '手滑.md'},
+                    {name: '挑衅', file: '挑衅.md'},
+                    {name: '捉迷藏', file: '捉迷藏.md'},
+                    {name: '捉迷藏2', file: '捉迷藏2.md'},
+                    {name: '接连死去的哥哥', file: '接连死去的哥哥.md'},
+                    {name: '日访三十国', file: '日访三十国.md'},
+                    {name: '杀人早餐', file: '杀人早餐.md'},
+                    {name: '杀妻后自杀', file: '杀妻后自杀.md'},
+                    {name: '死亡直播', file: '死亡直播.md'},
+                    {name: '水池中的死者', file: '水池中的死者.md'},
+                    {name: '治病', file: '治病.md'},
+                    {name: '爱犬', file: '爱犬.md'},
+                    {name: '生意', file: '生意.md'},
+                    {name: '电梯里的人', file: '电梯里的人.md'},
+                    {name: '看病', file: '看病.md'},
+                    {name: '看起来没那么严重', file: '看起来没那么严重.md'},
+                    {name: '祭日', file: '祭日.md'},
+                    {name: '私人医生', file: '私人医生.md'},
+                    {name: '脚步声', file: '脚步声.md'},
+                    {name: '自相残杀', file: '自相残杀.md'},
+                    {name: '街上的工作', file: '街上的工作.md'},
+                    {name: '裤子破了', file: '裤子破了.md'},
+                    {name: '要好的朋友', file: '要好的朋友.md'},
+                    {name: '要水拿枪', file: '要水拿枪.md'},
+                    {name: '车头灯关闭', file: '车头灯关闭.md'},
+                    {name: '长路终有归途', file: '长路终有归途.md'}
+                ].map(async puzzle => {
+                    const response = await fetch(`puzzles/${puzzle.file}`);
+                    puzzle.content = await response.text();
+                    return puzzle;
+                }));
+
+                // 为每个游戏创建卡片
+                puzzles.forEach(puzzle => {
+                    // 提取汤面部分
+                    let puzzleText = puzzle.content;
+                    const puzzleMatch = puzzle.content.match(/### 汤面([\s\S]*?)### 汤底/);
+                    if (puzzleMatch) {
+                        puzzleText = puzzleMatch[1].trim();
+                    }
+                    
+                    // 创建游戏卡片
+                    const card = document.createElement('div');
+                    card.className = 'game-card';
+                    card.innerHTML = `
+                        <div class="game-title">${puzzle.name}</div>
+                        <div class="game-preview">${puzzleText.substring(0, 100)}...</div>
+                    `;
+                    
+                    // 添加点击事件
+                    card.addEventListener('click', () => {
+                        window.location.href = `game.html?puzzle=${encodeURIComponent(puzzle.file)}`;
+                    });
+                    
+                    gameList.appendChild(card);
+                });
+            } catch (error) {
+                gameList.innerHTML = `<div class="error">加载游戏列表失败: ${error.message}</div>`;
+            }
+        });
+    </script>
 </body>
 </html>

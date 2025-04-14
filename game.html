@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>海龟汤AI助手</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <img src="icon.png" alt="Logo" class="logo">
+            <div class="group-name">ECONCS@PKU</div>
+        </div>
+    </header>
+    <div class="container">
+        <h1>海龟汤AI助手</h1>
+        <div class="puzzle-container">
+            <div id="puzzle-display"></div>
+            <div class="controls">
+                <button id="new-puzzle">新谜题</button>
+                <button id="get-hint">获取提示</button>
+                <button id="solve">解答</button>
+            </div>
+            <div class="user-input">
+                <input type="text" id="user-guess" placeholder="输入你的猜测...">
+                <button id="submit-guess">提交</button>
+            </div>
+        </div>
+    </div>
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
