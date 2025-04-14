@@ -75,48 +75,41 @@
             const gameList = document.getElementById('game-list');
             
             try {
-                // 获取所有谜题数据
-                const puzzles = await Promise.all([
-                    {name: '100元钱', file: '100元钱.md'},
-                    {name: '保龄球', file: '保龄球.md'},
-                    {name: '免费的大餐', file: '免费的大餐.md'},
-                    {name: '关灯之后', file: '关灯之后.md'},
-                    {name: '最棒的一天', file: '最棒的一天.md'},
-                    {name: '对赌', file: '对赌.md'},
-                    {name: '延迟死亡', file: '延迟死亡.md'},
-                    {name: '忠诚的狗', file: '忠诚的狗.md'},
-                    {name: '怀孕', file: '怀孕.md'},
-                    {name: '手滑', file: '手滑.md'},
-                    {name: '挑衅', file: '挑衅.md'},
-                    {name: '捉迷藏', file: '捉迷藏.md'},
-                    {name: '捉迷藏2', file: '捉迷藏2.md'},
-                    {name: '接连死去的哥哥', file: '接连死去的哥哥.md'},
-                    {name: '日访三十国', file: '日访三十国.md'},
-                    {name: '杀人早餐', file: '杀人早餐.md'},
-                    {name: '杀妻后自杀', file: '杀妻后自杀.md'},
-                    {name: '死亡直播', file: '死亡直播.md'},
-                    {name: '水池中的死者', file: '水池中的死者.md'},
-                    {name: '治病', file: '治病.md'},
-                    {name: '爱犬', file: '爱犬.md'},
-                    {name: '生意', file: '生意.md'},
-                    {name: '电梯里的人', file: '电梯里的人.md'},
-                    {name: '看病', file: '看病.md'},
-                    {name: '看起来没那么严重', file: '看起来没那么严重.md'},
-                    {name: '祭日', file: '祭日.md'},
-                    {name: '私人医生', file: '私人医生.md'},
-                    {name: '脚步声', file: '脚步声.md'},
-                    {name: '自相残杀', file: '自相残杀.md'},
-                    {name: '街上的工作', file: '街上的工作.md'},
-                    {name: '裤子破了', file: '裤子破了.md'},
-                    {name: '要好的朋友', file: '要好的朋友.md'},
-                    {name: '要水拿枪', file: '要水拿枪.md'},
-                    {name: '车头灯关闭', file: '车头灯关闭.md'},
-                    {name: '长路终有归途', file: '长路终有归途.md'}
-                ].map(async puzzle => {
-                    const response = await fetch(`puzzles/${puzzle.file}`);
-                    puzzle.content = await response.text();
-                    return puzzle;
-                }));
+                // 动态获取puzzles目录下的所有.md文件
+                const response = await fetch('puzzles/');
+                const text = await response.text();
+                const parser = new DOMParser();
+                const htmlDoc = parser.parseFromString(text, 'text/html');
+                const links = htmlDoc.querySelectorAll('a[href$=".md"]');
+                
+                if (links.length === 0) {
+                    throw new Error('没有找到任何谜题文件');
+                }
+
+                // 获取并验证所有谜题数据
+                const puzzles = [];
+                for (const link of links) {
+                    try {
+                        const file = decodeURIComponent(link.getAttribute('href'));
+                        const response = await fetch(`puzzles/${encodeURI(file)}`);
+                        if (!response.ok) continue;
+                        
+                        const content = await response.text();
+                        // 验证内容格式
+                        if (!content.includes('### 汤面') || !content.includes('### 汤底')) {
+                            console.warn(`谜题文件格式不正确: ${file}`);
+                            continue;
+                        }
+                        
+                        puzzles.push({
+                            name: decodeURIComponent(file.replace('.md', '')),
+                            file: file,
+                            content: content
+                        });
+                    } catch (error) {
+                        console.error(`加载谜题失败: ${error.message}`);
+                    }
+                }
 
                 // 为每个游戏创建卡片
                 puzzles.forEach(puzzle => {
