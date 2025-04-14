@@ -1,0 +1,17 @@
+# Ignore node modules
+node_modules/
+
+# Ignore API keys and sensitive config
+config.js
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+*.tar.gz
+*.Zone.Identifier
+
+# Ignore IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
