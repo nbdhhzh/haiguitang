@@ -6,11 +6,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const newPuzzleBtn = document.getElementById('new-puzzle');
     const getHintBtn = document.getElementById('get-hint');
     const solveBtn = document.getElementById('solve');
-    const resetBtn = document.createElement('button');
-    resetBtn.textContent = '清空重来';
-    resetBtn.id = 'reset';
-    document.querySelector('.controls').appendChild(resetBtn);
-    
     let currentPuzzle = null;
     let currentPuzzleFile = null;
     let cluesGiven = [];
@@ -43,16 +38,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         return false;
     }
-
-    // 清空按钮事件
-    resetBtn.addEventListener('click', () => {
-        localStorage.removeItem('hgtState');
-        if (currentPuzzleFile) {
-            loadPuzzle(currentPuzzleFile);
-        } else {
-            loadRandomPuzzle();
-        }
-    });
 
     // 新谜题按钮
     newPuzzleBtn.addEventListener('click', () => {
@@ -124,23 +109,41 @@ document.addEventListener('DOMContentLoaded', function() {
     const urlParams = new URLSearchParams(window.location.search);
     const puzzleFile = urlParams.get('puzzle');
     
-    // 尝试恢复状态，失败则加载新谜题
-    if (!restoreState()) {
-        if (puzzleFile) {
-            loadPuzzle(puzzleFile);
-        } else {
-            loadRandomPuzzle();
-        }
+    // 处理URL参数中的谜题（不恢复状态）
+    if (puzzleFile) {
+        localStorage.removeItem('hgtState');
+        loadPuzzle(puzzleFile);
+    } 
+    // 没有URL参数则尝试恢复状态或加载随机谜题
+    else if (!restoreState()) {
+        loadRandomPuzzle();
     }
     
     async function loadPuzzle(fileName) {
         try {
+            // 完全重置状态
+            localStorage.removeItem('hgtState');
+            currentPuzzle = null;
+            currentPuzzleFile = null;
+            cluesGiven = [];
+            chatContainer.innerHTML = '';
+            
             const response = await fetch(`puzzles/${fileName}`);
             currentPuzzle = await response.text();
             currentPuzzleFile = fileName;
             
-            const puzzleMatch = currentPuzzle.match(/### 汤面([\s\S]*?)### 汤底/);
-            const puzzleText = puzzleMatch ? puzzleMatch[1].trim() : currentPuzzle.split('### 汤底')[0].trim();
+            // 更健壮的谜题内容解析
+            const puzzleParts = currentPuzzle.split('### 汤面');
+            if (puzzleParts.length < 2) {
+                throw new Error('无效的谜题格式: 缺少汤面部分');
+            }
+            
+            const solutionParts = puzzleParts[1].split('### 汤底');
+            if (solutionParts.length < 2) {
+                throw new Error('无效的谜题格式: 缺少汤底部分');
+            }
+            
+            const puzzleText = solutionParts[0].trim();
             const puzzleName = fileName.replace('.md', '');
             
             chatContainer.innerHTML = '';
@@ -156,8 +159,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const hintDiv = document.createElement('div');
             hintDiv.className = 'hint-section';
             hintDiv.innerHTML = `
-                <p>你可以通过提问来获取线索，问题请用"是/不是"能回答的形式。</p>
-                <p>当你想猜测汤底时，请以"汤底"开头描述你的推理。</p>
+                你可以通过提问来获取线索，问题请用"是/不是"能回答的形式。<br>
+                当你想猜测汤底时，请以"汤底"开头描述你的推理。
             `;
             chatContainer.appendChild(hintDiv);
             cluesGiven = [];
@@ -190,7 +193,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // 处理用户输入
-    submitBtn.addEventListener('click', async () => {
+    submitBtn.addEventListener('click', async function handleSubmit() {
+        if (!currentPuzzle) {
+            addMessage('请先加载一个谜题', 'error');
+            return;
+        }
+        
         const input = userInput.value.trim();
         if (!input) return;
         
