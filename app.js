@@ -3,7 +3,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const chatContainer = document.getElementById('puzzle-display');
     const userInput = document.getElementById('user-guess');
     const submitBtn = document.getElementById('submit-guess');
-    const newPuzzleBtn = document.getElementById('new-puzzle');
     const getHintBtn = document.getElementById('get-hint');
     const solveBtn = document.getElementById('solve');
     let currentPuzzle = null;
@@ -39,12 +38,6 @@ document.addEventListener('DOMContentLoaded', function() {
         return false;
     }
 
-    // 新谜题按钮
-    newPuzzleBtn.addEventListener('click', () => {
-        localStorage.removeItem('hgtState');
-        loadRandomPuzzle();
-    });
-    
     // 获取提示按钮
     getHintBtn.addEventListener('click', async () => {
         if (!currentPuzzle) return;
