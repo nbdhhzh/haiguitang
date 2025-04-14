@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', function() {
             cluesGiven = [];
             chatContainer.innerHTML = '';
             
-            const response = await fetch(`puzzles/${fileName}`);
+            const response = await fetch(`/puzzles/${fileName}`);
             currentPuzzle = await response.text();
             currentPuzzleFile = fileName;
             
@@ -165,7 +165,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     async function loadRandomPuzzle() {
         try {
-            const response = await fetch('puzzles/');
+            const response = await fetch('/puzzles/');
             const text = await response.text();
             
             const parser = new DOMParser();
