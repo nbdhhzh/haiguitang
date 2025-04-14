@@ -75,22 +75,21 @@
             const gameList = document.getElementById('game-list');
             
             try {
-                // 动态获取puzzles目录下的所有.md文件
-                const response = await fetch('puzzles/');
-                const text = await response.text();
-                const parser = new DOMParser();
-                const htmlDoc = parser.parseFromString(text, 'text/html');
-                const links = htmlDoc.querySelectorAll('a[href$=".md"]');
+                // 从puzzles.json获取谜题列表
+                const listResponse = await fetch('puzzles/puzzles.json');
+                if (!listResponse.ok) {
+                    throw new Error('无法加载谜题列表');
+                }
+                const puzzleFiles = await listResponse.json();
                 
-                if (links.length === 0) {
+                if (puzzleFiles.length === 0) {
                     throw new Error('没有找到任何谜题文件');
                 }
 
                 // 获取并验证所有谜题数据
                 const puzzles = [];
-                for (const link of links) {
+                for (const file of puzzleFiles) {
                     try {
-                        const file = decodeURIComponent(link.getAttribute('href'));
                         const response = await fetch(`puzzles/${encodeURI(file)}`);
                         if (!response.ok) continue;
                         
