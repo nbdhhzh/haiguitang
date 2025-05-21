@@ -1,13 +1,13 @@
 import os
 import json
 from http.server import HTTPServer, SimpleHTTPRequestHandler
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, unquote
 
 class RequestHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path.startswith('/puzzles/'):
             try:
-                path = os.path.join('puzzles', self.path[9:])
+                path = os.path.join('puzzles', unquote(self.path[9:]))
                 if not os.path.exists(path):
                     self.send_response(404)
                     self.end_headers()
@@ -16,6 +16,7 @@ class RequestHandler(SimpleHTTPRequestHandler):
                 with open(path, 'rb') as f:
                     self.send_response(200)
                     self.send_header('Content-type', 'text/plain; charset=utf-8')
+                    self.send_header('Cache-Control', 'public, max-age=604800')
                     self.end_headers()
                     self.wfile.write(f.read())
             except Exception as e:
