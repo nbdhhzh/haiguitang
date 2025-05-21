@@ -1,3 +1,72 @@
+// 初始化IndexedDB
+let db;
+const initDB = new Promise((resolve) => {
+    const request = indexedDB.open('HaiGuiTangDB', 1);
+    
+    request.onupgradeneeded = (event) => {
+        db = event.target.result;
+        if (!db.objectStoreNames.contains('userRecords')) {
+            db.createObjectStore('userRecords', { keyPath: ['puzzle', 'ip'] });
+        }
+    };
+    
+    request.onsuccess = (event) => {
+        db = event.target.result;
+        resolve();
+    };
+    
+    request.onerror = (event) => {
+        console.error('数据库打开失败:', event.target.error);
+    };
+});
+
+// 保存用户记录
+async function saveUserRecord(puzzleFile, recordData) {
+    try {
+        const {ip} = await fetch('https://api.ipify.org?format=json').then(res => res.json());
+        const puzzleName = puzzleFile.replace('.md', '');
+        
+        const response = await fetch('/save-record', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                puzzle: puzzleName,
+                ip: ip,
+                data: recordData
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('保存记录失败');
+        }
+        return true;
+    } catch (error) {
+        console.error('保存记录出错:', error);
+        return false;
+    }
+}
+
+// 加载用户记录
+async function loadUserRecord(puzzleFile) {
+    try {
+        const {ip} = await fetch('https://api.ipify.org?format=json').then(res => res.json());
+        const puzzleName = puzzleFile.replace('.md', '');
+        const response = await fetch(`/load-record?puzzle=${encodeURIComponent(puzzleName)}&ip=${encodeURIComponent(ip)}`);
+        if (!response.ok) {
+            console.log('没有找到记录文件');
+            return null;
+        }
+        const data = await response.json();
+        console.log('加载的记录数据:', data);
+        return data;
+    } catch (error) {
+        console.error('加载记录出错:', error);
+        return null;
+    }
+}
+
 // 海龟汤游戏主逻辑 - 对话模式
 document.addEventListener('DOMContentLoaded', function() {
     const chatContainer = document.getElementById('puzzle-display');
@@ -9,33 +78,43 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentPuzzleFile = null;
     let cluesGiven = [];
 
-    // 保存状态到localStorage
+    // 保存状态
     function saveState() {
-        localStorage.setItem('hgtState', JSON.stringify({
+        const state = {
             puzzle: currentPuzzle,
             file: currentPuzzleFile,
             clues: cluesGiven,
             chatHistory: document.getElementById('puzzle-display').innerHTML
-        }));
+        };
+        
+        // 直接保存到localStorage
+        localStorage.setItem('hgtState', JSON.stringify(state));
+        
+        // 同时保存到特定谜题记录
+        if (currentPuzzleFile) {
+            saveUserRecord(currentPuzzleFile, state);
+        }
     }
 
-    // 从localStorage恢复状态
-    function restoreState() {
-        const saved = localStorage.getItem('hgtState');
-        if (saved) {
+    // 恢复状态
+    async function restoreState(puzzleFile) {
+        // 先尝试从特定谜题记录恢复
+        if (puzzleFile) {
             try {
-                const state = JSON.parse(saved);
-                currentPuzzle = state.puzzle;
-                currentPuzzleFile = state.file;
-                cluesGiven = state.clues || [];
-                document.getElementById('puzzle-display').innerHTML = state.chatHistory || '';
-                return true;
-            } catch (e) {
-                console.error('恢复状态失败:', e);
-                localStorage.removeItem('hgtState');
+                const record = await loadUserRecord(puzzleFile);
+                console.log('从服务器加载的记录:', record);  // 调试日志
+                if (record) {
+                    currentPuzzle = record.puzzle;
+                    currentPuzzleFile = record.file;
+                    cluesGiven = record.clues || [];
+                    document.getElementById('puzzle-display').innerHTML = record.chatHistory || '';
+                    return true;
+                }
+            } catch (error) {
+                console.error('从服务器恢复状态失败:', error);
             }
         }
-        return false;
+        loadPuzzle(puzzleFile);
     }
 
     // 获取提示按钮
@@ -51,7 +130,7 @@ document.addEventListener('DOMContentLoaded', function() {
 谜题: ${currentPuzzle}
 规则:
 1. 提示应该引导思考但不要直接给出答案
-2. 提示应该简短明了` },
+2. 提示应该简短明了，以 "提示：" 开头` },
                 { role: "user", content: "请给我一个提示" }
             ]);
             
@@ -102,13 +181,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const urlParams = new URLSearchParams(window.location.search);
     const puzzleFile = urlParams.get('puzzle');
     
-    // 处理URL参数中的谜题（不恢复状态）
+    // 处理URL参数中的谜题
     if (puzzleFile) {
-        localStorage.removeItem('hgtState');
-        loadPuzzle(puzzleFile);
+        localStorage.removeItem('htgState');
+        restoreState(puzzleFile)
     } 
-    // 没有URL参数则尝试恢复状态或加载随机谜题
-    else if (!restoreState()) {
+    // 没有URL参数则加载随机谜题
+    else {
         loadRandomPuzzle();
     }
     
