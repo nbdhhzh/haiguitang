@@ -219,11 +219,12 @@ document.addEventListener('DOMContentLoaded', function() {
     async function answerQuestion(question) {
         try {
             const messages = [
-                { role: "system", content: `你是一个海龟汤游戏主持人，根据以下谜题和规则回答问题：
+                {
+                    role: "system", content: `你是一个海龟汤游戏主持人，根据以下谜题和规则，对猜题者的问题进行判断：
 谜题: ${currentPuzzle}
 规则:
-1. 先对谜题和问题进行简单分析，然后再给出回答
-2. 回答必须用"{是}"、"{不是}"、"{是也不是}"或"{没有关系}"格式
+1. 先在<think></think>中对谜题和猜题者的问题进行简单分析，然后再给出判断
+2. 最后的判断用大括号括起来，必须是"{是}"、"{不是}"、"{是也不是}"或"{没有关系}"四者其一
 3. 如果问题部分正确回答"{是也不是}"
 4. 如果问题与谜题无关回答"{没有关系}"` },
                 { role: "user", content: question }
@@ -251,12 +252,12 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const messages = [
                 {
-                    role: "system", content: `你是一个海龟汤游戏主持人，根据以下谜题验证猜题者的答案：
+                    role: "system", content: `你是一个海龟汤游戏主持人，根据以下谜题判断猜题者的答案是否完整、正确：
 谜题: ${currentPuzzle}
 规则:
-1. 先对谜题和猜题者的答案进行简单分析，然后再给出判断结果
-2. 判断结果必须用"{完全正确}"、"{部分正确}"或"{完全错误}"格式
-3. 可以指出错误或遗漏的部分` },
+1. 先在<think></think>中对谜题和猜题者的答案进行简单分析，然后再给出判断
+2. 最后的判断用大括号括起来，必须是"{完全正确}"、"{部分正确}"或"{完全错误}"三者其一
+3. 如果答案部分正确却很不完整，回答"{部分正确}"` },
                 { role: "user", content: `汤底: ${solution}` }
             ];
 
@@ -306,6 +307,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const data = await response.json();
+        console.log(messages)
+        console.log(data);
         return data.choices[0].message.content;
     }
 
@@ -336,7 +339,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 responseClass = 'response-yes';
             } else if (trimmedText === '不是') {
                 responseClass = 'response-no';
-            } else if (trimmedText === '没有关系') {
+            } else {
                 responseClass = 'response-neutral';
             }
             
