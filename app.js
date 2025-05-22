@@ -371,26 +371,80 @@ ${currentPuzzle}
                 modal.style.left = '50%';
                 modal.style.transform = 'translate(-50%, -50%)';
                 modal.style.backgroundColor = '#fff';
-                modal.style.padding = '20px';
-                modal.style.borderRadius = '8px';
-                modal.style.boxShadow = '0 0 20px rgba(0,0,0,0.3)';
+                modal.style.padding = '30px';
+                modal.style.borderRadius = '12px';
+                modal.style.boxShadow = '0 0 25px rgba(0,0,0,0.4)';
                 modal.style.zIndex = '1000';
-                modal.style.maxWidth = '80%';
-                modal.style.maxHeight = '80%';
+                modal.style.maxWidth = '600px';
+                modal.style.width = '90%';
+                modal.style.maxHeight = '90vh';
                 modal.style.overflow = 'auto';
+                modal.style.fontFamily = 'Arial, sans-serif';
                 modal.innerHTML = `
-                    <h2 style="color: #4CAF50; margin-top: 0;">完全正确！！！</h2>
-                    <p>恭喜你解开了这个谜题！</p>
-                    <h3>汤底：</h3>
-                    <p>${solution}</p>
-                    <button id="closeModal" style="margin-top: 15px; padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">关闭</button>
+                    <h2 style="color: #4CAF50; margin-top: 0; text-align: center;">完全正确！！！</h2>
+                    <p style="text-align: center;">恭喜你解开了这个谜题！</p>
+                    <div style="margin: 20px 0;">
+                        <h3 style="margin-bottom: 10px;">汤底：</h3>
+                        <p style="background: #f5f5f5; padding: 15px; border-radius: 8px;">${solution}</p>
+                    </div>
+                    <div style="margin: 25px 0;">
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 8px; font-weight: bold;">趣味性评分:</label>
+                            <div class="star-rating">
+                                ${[1,2,3,4,5].map(i => `<span class="star" data-rating="fun" data-value="${i}">★</span>`).join('')}
+                            </div>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 8px; font-weight: bold;">逻辑性评分:</label>
+                            <div class="star-rating">
+                                ${[1,2,3,4,5].map(i => `<span class="star" data-rating="logic" data-value="${i}">★</span>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+                    <button id="submitRating" style="display: block; width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-top: 15px;">提交评分</button>
                 `;
                 document.body.appendChild(modal);
                 
-                // 添加关闭按钮事件
-                document.getElementById('closeModal').addEventListener('click', () => {
-                    document.body.removeChild(modal);
+                // 添加星级评分交互
+                modal.querySelectorAll('.star').forEach(star => {
+                    star.style.cursor = 'pointer';
+                    star.style.fontSize = '24px';
+                    star.style.color = '#ccc';
+                    star.style.marginRight = '5px';
+                    
+                    star.addEventListener('mouseover', function() {
+                        const ratingType = this.getAttribute('data-rating');
+                        const value = parseInt(this.getAttribute('data-value'));
+                        highlightStars(ratingType, value);
+                    });
+                    
+                    star.addEventListener('click', function() {
+                        const ratingType = this.getAttribute('data-rating');
+                        const value = parseInt(this.getAttribute('data-value'));
+                        modal.dataset[`${ratingType}Rating`] = value;
+                    });
                 });
+                
+                // 添加提交按钮事件
+                document.getElementById('submitRating').addEventListener('click', () => {
+                    const funRating = modal.dataset.funRating || 0;
+                    const logicRating = modal.dataset.logicRating || 0;
+                    
+                    if (funRating > 0 && logicRating > 0) {
+                        // 这里可以添加保存评分的逻辑
+                        console.log(`趣味性评分: ${funRating}, 逻辑性评分: ${logicRating}`);
+                        document.body.removeChild(modal);
+                    } else {
+                        alert('请完成两项评分后再提交');
+                    }
+                });
+                
+                function highlightStars(ratingType, value) {
+                    modal.querySelectorAll(`.star[data-rating="${ratingType}"]`).forEach(star => {
+                        const starValue = parseInt(star.getAttribute('data-value'));
+                        star.style.color = starValue <= value ? '#FFD700' : '#ccc';
+                    });
+                }
                 
                 return '';
             }
