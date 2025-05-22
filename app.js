@@ -240,7 +240,8 @@ ${currentPuzzle}
             hintDiv.className = 'hint-section';
             hintDiv.innerHTML = `
                 你可以通过提问来获取线索，问题请用"是/不是"能回答的形式。<br>
-                当你想猜测汤底时，请以"汤底"开头描述你的推理。
+                当你想猜测汤底时，请以"汤底："开头描述你的推理。<br>
+                所有回复由大模型生成，请耐心等候。如果长时间没有回复，可以刷新页面。
             `;
             chatContainer.appendChild(hintDiv);
             cluesGiven = [];
