@@ -425,15 +425,46 @@ ${currentPuzzle}
                     });
                 });
                 
-                // 添加提交按钮事件
-                document.getElementById('submitRating').addEventListener('click', () => {
+                // 添加提交按钮事件 (改为async函数)
+                document.getElementById('submitRating').addEventListener('click', async () => {
                     const funRating = modal.dataset.funRating || 0;
                     const logicRating = modal.dataset.logicRating || 0;
                     
                     if (funRating > 0 && logicRating > 0) {
-                        // 这里可以添加保存评分的逻辑
-                        console.log(`趣味性评分: ${funRating}, 逻辑性评分: ${logicRating}`);
+                        // 保存评分到本地存储和服务器
+                        const ratingData = {
+                            puzzle: currentPuzzle,
+                            funRating: funRating,
+                            logicRating: logicRating,
+                            date: new Date().toISOString()
+                        };
+                        
+                        // 本地存储
+                        const ratings = JSON.parse(localStorage.getItem('puzzleRatings') || '[]');
+                        ratings.push(ratingData);
+                        localStorage.setItem('puzzleRatings', JSON.stringify(ratings));
+                        
+                        // 服务器存储
+                        // if (currentPuzzleFile) {
+                        //     try {
+                        //         await saveUserRecord(currentPuzzleFile, ratingData);
+                        //     } catch (error) {
+                        //         console.error('保存评分记录失败:', error);
+                        //     }
+                        // }
+                        
+                        // 在主页面显示评分结果
+                        const ratingResult = document.createElement('div');
+                        ratingResult.className = 'rating-result';
+                        ratingResult.innerHTML = `
+                            <p>趣味性评分: ${'★'.repeat(funRating)}</p>
+                            <p>逻辑性评分: ${'★'.repeat(logicRating)}</p>
+                        `;
+                        chatContainer.appendChild(ratingResult);
+                        
+                        // 直接关闭弹窗
                         document.body.removeChild(modal);
+                        saveState();
                     } else {
                         alert('请完成两项评分后再提交');
                     }
