@@ -159,8 +159,14 @@ ${currentPuzzle}
         
         const solutionMatch = currentPuzzle.match(/### 汤底([\s\S]*?)(###|$)/);
         if (solutionMatch) {
-            addMessage('汤底：' + solutionMatch[1].trim(), 'bot');
-            saveState();
+            const solution = currentPuzzle.match(/### 汤底([\s\S]*?)(###|$)/)[1].trim();
+            const correctDiv = document.createElement('div');
+            correctDiv.innerHTML = `
+                <span style="font-weight:bold;color:#3498DB">汤底解答</span>
+                <div>${'汤底：' + solution}</div>
+            `;
+            chatContainer.appendChild(correctDiv);
+            showSolution(currentPuzzle, "汤底解答", "#3498DB");
         }
     });
 
@@ -276,17 +282,19 @@ ${currentPuzzle}
         const input = userInput.value.trim();
         if (!input) return;
         
-        const waitingSpan = addMessage(input, 'user');
         lockUI();
         
         try {
             let response;
             if (input.startsWith('汤底') || input.startsWith("汤底：")) {
-                response = await checkSolution(input.replace(/^汤底[:：]?\s*/, ''));
+                const waitingSpan = addMessage(input, 'sol');
+                response = await checkSolution(input.replace(/^汤底[:：]?\s*/, ''), waitingSpan);
+                
             } else {
+                const waitingSpan = addMessage(input, 'qa');
                 response = await answerQuestion(input);
+                addMessage(response, 'bot', waitingSpan.id);
             }
-            addMessage(response, 'bot', waitingSpan.id);
             saveState();
         } catch (error) {
             addMessage(`处理失败: ${error.message}`, 'error', 'waiting-message');
@@ -329,9 +337,116 @@ ${currentPuzzle}
             throw new Error(`回答问题时出错: ${error.message}`);
         }
     }
+    function showSolution(currentPuzzle, result, color) {
+        const solution = currentPuzzle.match(/### 汤底([\s\S]*?)(###|$)/)[1].trim();
 
+        // 添加弹窗逻辑
+        const modal = document.createElement('div');
+        modal.style.position = 'fixed';
+        modal.style.top = '50%';
+        modal.style.left = '50%';
+        modal.style.transform = 'translate(-50%, -50%)';
+        modal.style.backgroundColor = '#fff';
+        modal.style.padding = '30px';
+        modal.style.borderRadius = '12px';
+        modal.style.boxShadow = '0 0 25px rgba(0,0,0,0.4)';
+        modal.style.zIndex = '1000';
+        modal.style.maxWidth = '600px';
+        modal.style.width = '90%';
+        modal.style.maxHeight = '90vh';
+        modal.style.overflow = 'auto';
+        modal.style.fontFamily = 'Arial, sans-serif';
+        modal.innerHTML = `
+            <h2 style="color: ${color}; margin-top: 0; text-align: center;">${result}</h2>
+            <div style="margin: 20px 0;">
+                <h3 style="margin-bottom: 10px;">汤底：</h3>
+                <p style="background: #f5f5f5; padding: 15px; border-radius: 8px;">${solution}</p>
+            </div>
+            <div style="margin: 25px 0;">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">趣味性评分:</label>
+                    <div class="star-rating">
+                        ${[1, 2, 3, 4, 5].map(i => `<span class="star" data-rating="fun" data-value="${i}">★</span>`).join('')}
+                    </div>
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">逻辑性评分:</label>
+                    <div class="star-rating">
+                        ${[1, 2, 3, 4, 5].map(i => `<span class="star" data-rating="logic" data-value="${i}">★</span>`).join('')}
+                    </div>
+                </div>
+            </div>
+            <button id="submitRating" style="display: block; width: 100%; padding: 12px; background: ${color}; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-top: 15px;">提交评分</button>
+        `;
+        document.body.appendChild(modal);
+
+        // 添加星级评分交互
+        modal.querySelectorAll('.star').forEach(star => {
+            star.style.cursor = 'pointer';
+            star.style.fontSize = '24px';
+            star.style.color = '#ccc';
+            star.style.marginRight = '5px';
+
+            star.addEventListener('mouseover', function () {
+                const ratingType = this.getAttribute('data-rating');
+                const value = parseInt(this.getAttribute('data-value'));
+                highlightStars(ratingType, value);
+            });
+
+            star.addEventListener('click', function () {
+                const ratingType = this.getAttribute('data-rating');
+                const value = parseInt(this.getAttribute('data-value'));
+                modal.dataset[`${ratingType}Rating`] = value;
+            });
+        });
+
+        // 添加提交按钮事件 (改为async函数)
+        document.getElementById('submitRating').addEventListener('click', async () => {
+            const funRating = modal.dataset.funRating || 0;
+            const logicRating = modal.dataset.logicRating || 0;
+
+            if (funRating > 0 && logicRating > 0) {
+                // 保存评分到本地存储和服务器
+                const ratingData = {
+                    puzzle: currentPuzzle,
+                    funRating: funRating,
+                    logicRating: logicRating,
+                    date: new Date().toISOString()
+                };
+
+                // 本地存储
+                const ratings = JSON.parse(localStorage.getItem('puzzleRatings') || '[]');
+                ratings.push(ratingData);
+                localStorage.setItem('puzzleRatings', JSON.stringify(ratings));
+
+                // 在主页面显示评分结果
+                const ratingResult = document.createElement('div');
+                ratingResult.className = 'rating-result';
+                ratingResult.innerHTML = `
+                            <p>趣味性评分: ${'★'.repeat(funRating)}</p>
+                            <p>逻辑性评分: ${'★'.repeat(logicRating)}</p>
+                        `;
+                chatContainer.appendChild(ratingResult);
+
+                // 直接关闭弹窗
+                document.body.removeChild(modal);
+                saveState();
+            } else {
+                alert('请完成两项评分后再提交');
+            }
+        });
+
+        function highlightStars(ratingType, value) {
+            modal.querySelectorAll(`.star[data-rating="${ratingType}"]`).forEach(star => {
+                const starValue = parseInt(star.getAttribute('data-value'));
+                star.style.color = starValue <= value ? '#FFD700' : '#ccc';
+            });
+        }
+
+        return '';
+    }
     // 验证谜底
-    async function checkSolution(solution) {
+    async function checkSolution(solution, waitingSpan) {
         try {
             const messages = [
                 {
@@ -354,130 +469,21 @@ ${currentPuzzle}
             
             const resultMatch = response.match(/\{(.*?)\}/);
             const result = resultMatch ? resultMatch[1] : response;
-            
+
+            const sol = currentPuzzle.match(/### 汤底([\s\S]*?)(###|$)/)[1].trim();
+            const correctDiv = document.createElement('div');
             if (result === '完全正确') {
-                const solution = currentPuzzle.match(/### 汤底([\s\S]*?)(###|$)/)[1].trim();
-                const correctDiv = document.createElement('div');
                 correctDiv.innerHTML = `
-                    <span style="font-weight:bold;color:green">完全正确！！！</span>
-                    <div>${'汤底：' + solution}</div>
+                    <span style="font-weight:bold;color:#2e7d32">完全正确</span>
+                    <div>${'汤底：' + sol}</div>
                 `;
-                chatContainer.appendChild(correctDiv);
-                
-                // 添加弹窗逻辑
-                const modal = document.createElement('div');
-                modal.style.position = 'fixed';
-                modal.style.top = '50%';
-                modal.style.left = '50%';
-                modal.style.transform = 'translate(-50%, -50%)';
-                modal.style.backgroundColor = '#fff';
-                modal.style.padding = '30px';
-                modal.style.borderRadius = '12px';
-                modal.style.boxShadow = '0 0 25px rgba(0,0,0,0.4)';
-                modal.style.zIndex = '1000';
-                modal.style.maxWidth = '600px';
-                modal.style.width = '90%';
-                modal.style.maxHeight = '90vh';
-                modal.style.overflow = 'auto';
-                modal.style.fontFamily = 'Arial, sans-serif';
-                modal.innerHTML = `
-                    <h2 style="color: #4CAF50; margin-top: 0; text-align: center;">完全正确！！！</h2>
-                    <p style="text-align: center;">恭喜你解开了这个谜题！</p>
-                    <div style="margin: 20px 0;">
-                        <h3 style="margin-bottom: 10px;">汤底：</h3>
-                        <p style="background: #f5f5f5; padding: 15px; border-radius: 8px;">${solution}</p>
-                    </div>
-                    <div style="margin: 25px 0;">
-                        <div style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 8px; font-weight: bold;">趣味性评分:</label>
-                            <div class="star-rating">
-                                ${[1,2,3,4,5].map(i => `<span class="star" data-rating="fun" data-value="${i}">★</span>`).join('')}
-                            </div>
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 8px; font-weight: bold;">逻辑性评分:</label>
-                            <div class="star-rating">
-                                ${[1,2,3,4,5].map(i => `<span class="star" data-rating="logic" data-value="${i}">★</span>`).join('')}
-                            </div>
-                        </div>
-                    </div>
-                    <button id="submitRating" style="display: block; width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-top: 15px;">提交评分</button>
+                waitingSpan.parentNode.replaceChild(correctDiv, waitingSpan);
+                showSolution(currentPuzzle, result, "#2e7d32");
+            } else  {
+                correctDiv.innerHTML = `
+                    <span style="font-weight:bold;color:${result === "部分正确" ? "#757575" : "#c62828"}">${result}</span>
                 `;
-                document.body.appendChild(modal);
-                
-                // 添加星级评分交互
-                modal.querySelectorAll('.star').forEach(star => {
-                    star.style.cursor = 'pointer';
-                    star.style.fontSize = '24px';
-                    star.style.color = '#ccc';
-                    star.style.marginRight = '5px';
-                    
-                    star.addEventListener('mouseover', function() {
-                        const ratingType = this.getAttribute('data-rating');
-                        const value = parseInt(this.getAttribute('data-value'));
-                        highlightStars(ratingType, value);
-                    });
-                    
-                    star.addEventListener('click', function() {
-                        const ratingType = this.getAttribute('data-rating');
-                        const value = parseInt(this.getAttribute('data-value'));
-                        modal.dataset[`${ratingType}Rating`] = value;
-                    });
-                });
-                
-                // 添加提交按钮事件 (改为async函数)
-                document.getElementById('submitRating').addEventListener('click', async () => {
-                    const funRating = modal.dataset.funRating || 0;
-                    const logicRating = modal.dataset.logicRating || 0;
-                    
-                    if (funRating > 0 && logicRating > 0) {
-                        // 保存评分到本地存储和服务器
-                        const ratingData = {
-                            puzzle: currentPuzzle,
-                            funRating: funRating,
-                            logicRating: logicRating,
-                            date: new Date().toISOString()
-                        };
-                        
-                        // 本地存储
-                        const ratings = JSON.parse(localStorage.getItem('puzzleRatings') || '[]');
-                        ratings.push(ratingData);
-                        localStorage.setItem('puzzleRatings', JSON.stringify(ratings));
-                        
-                        // 服务器存储
-                        // if (currentPuzzleFile) {
-                        //     try {
-                        //         await saveUserRecord(currentPuzzleFile, ratingData);
-                        //     } catch (error) {
-                        //         console.error('保存评分记录失败:', error);
-                        //     }
-                        // }
-                        
-                        // 在主页面显示评分结果
-                        const ratingResult = document.createElement('div');
-                        ratingResult.className = 'rating-result';
-                        ratingResult.innerHTML = `
-                            <p>趣味性评分: ${'★'.repeat(funRating)}</p>
-                            <p>逻辑性评分: ${'★'.repeat(logicRating)}</p>
-                        `;
-                        chatContainer.appendChild(ratingResult);
-                        
-                        // 直接关闭弹窗
-                        document.body.removeChild(modal);
-                        saveState();
-                    } else {
-                        alert('请完成两项评分后再提交');
-                    }
-                });
-                
-                function highlightStars(ratingType, value) {
-                    modal.querySelectorAll(`.star[data-rating="${ratingType}"]`).forEach(star => {
-                        const starValue = parseInt(star.getAttribute('data-value'));
-                        star.style.color = starValue <= value ? '#FFD700' : '#ccc';
-                    });
-                }
-                
-                return '';
+                waitingSpan.parentNode.replaceChild(correctDiv, waitingSpan);
             }
             return result;
         } catch (error) {
@@ -506,8 +512,8 @@ ${currentPuzzle}
             throw new Error(`API请求失败: ${response.status}`);
         }
 
-        const data = await response.json();
         console.log(messages)
+        const data = await response.json();
         console.log(data);
         return data.choices[0].message.content;
     }
@@ -517,19 +523,25 @@ ${currentPuzzle}
         const container = document.createElement('div');
         container.className = 'message-container';
         
-        if (type === 'user') {
+        if (type === 'qa' || type == 'sol') {
             const userSpan = document.createElement('span');
             userSpan.className = 'user-message';
             userSpan.textContent = text;
             container.appendChild(userSpan);
-            
+
             const waitingSpan = document.createElement('span');
             waitingSpan.className = 'waiting-message';
             waitingSpan.id = `waiting-${Date.now()}`;
-            waitingSpan.textContent = ' - 等待中...';
-            container.appendChild(waitingSpan);
-            
-            chatContainer.appendChild(container);
+            if (type == 'qa') {
+                waitingSpan.textContent = ' - 等待中...';
+                container.appendChild(waitingSpan);
+                chatContainer.appendChild(container);
+            }
+            if (type == 'sol') {
+                chatContainer.appendChild(container);
+                waitingSpan.textContent = '\n等待判定...';
+                chatContainer.appendChild(waitingSpan);
+            }
             chatContainer.scrollTop = chatContainer.scrollHeight;
             return waitingSpan;
         } else {

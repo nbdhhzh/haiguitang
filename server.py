@@ -71,7 +71,6 @@ class RequestHandler(SimpleHTTPRequestHandler):
                 
                 self.send_response(200)
                 self.end_headers()
-                print(f'Record saved successfully')
                 self.wfile.write(b'Record saved successfully')
             except Exception as e:
                 self.send_response(500)
