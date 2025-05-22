@@ -127,7 +127,9 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const response = await callOpenRouterAPI([
                 { role: "system", content: `你是一个海龟汤游戏主持人，根据以下谜题提供一个不泄露谜底的提示：
-谜题: ${currentPuzzle}
+谜题: 
+${currentPuzzle}
+
 规则:
 1. 提示应该引导思考但不要直接给出答案
 2. 提示应该简短明了，以 "提示：" 开头` },
@@ -157,7 +159,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const solutionMatch = currentPuzzle.match(/### 汤底([\s\S]*?)(###|$)/);
         if (solutionMatch) {
-            addMessage('谜底：' + solutionMatch[1].trim(), 'bot');
+            addMessage('汤底：' + solutionMatch[1].trim(), 'bot');
             saveState();
         }
     });
@@ -300,7 +302,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const messages = [
                 {
                     role: "system", content: `你是一个海龟汤游戏主持人，根据以下谜题和规则，对猜题者的问题进行判断：
-谜题: ${currentPuzzle}
+谜题: 
+${currentPuzzle}
+
 规则:
 1. 先在<think></think>中对谜题和猜题者的问题进行简单分析，然后再给出判断
 2. 最后的判断用大括号括起来，必须是"{是}"、"{不是}"、"{是也不是}"或"{没有关系}"四者其一
@@ -332,7 +336,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const messages = [
                 {
                     role: "system", content: `你是一个海龟汤游戏主持人，根据以下谜题判断猜题者的答案是否完整、正确：
-谜题: ${currentPuzzle}
+谜题: 
+${currentPuzzle}
+
 规则:
 1. 先在<think></think>中对谜题和猜题者的答案进行简单分析，然后再给出判断
 2. 最后的判断用大括号括起来，必须是"{完全正确}"、"{部分正确}"或"{完全错误}"三者其一
@@ -350,12 +356,42 @@ document.addEventListener('DOMContentLoaded', function() {
             const result = resultMatch ? resultMatch[1] : response;
             
             if (result === '完全正确') {
+                const solution = currentPuzzle.match(/### 汤底([\s\S]*?)(###|$)/)[1].trim();
                 const correctDiv = document.createElement('div');
                 correctDiv.innerHTML = `
                     <span style="font-weight:bold;color:green">完全正确！！！</span>
-                    <div>${'谜底：' + currentPuzzle.match(/### 汤底([\s\S]*?)(###|$)/)[1].trim()}</div>
+                    <div>${'汤底：' + solution}</div>
                 `;
                 chatContainer.appendChild(correctDiv);
+                
+                // 添加弹窗逻辑
+                const modal = document.createElement('div');
+                modal.style.position = 'fixed';
+                modal.style.top = '50%';
+                modal.style.left = '50%';
+                modal.style.transform = 'translate(-50%, -50%)';
+                modal.style.backgroundColor = '#fff';
+                modal.style.padding = '20px';
+                modal.style.borderRadius = '8px';
+                modal.style.boxShadow = '0 0 20px rgba(0,0,0,0.3)';
+                modal.style.zIndex = '1000';
+                modal.style.maxWidth = '80%';
+                modal.style.maxHeight = '80%';
+                modal.style.overflow = 'auto';
+                modal.innerHTML = `
+                    <h2 style="color: #4CAF50; margin-top: 0;">完全正确！！！</h2>
+                    <p>恭喜你解开了这个谜题！</p>
+                    <h3>汤底：</h3>
+                    <p>${solution}</p>
+                    <button id="closeModal" style="margin-top: 15px; padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">关闭</button>
+                `;
+                document.body.appendChild(modal);
+                
+                // 添加关闭按钮事件
+                document.getElementById('closeModal').addEventListener('click', () => {
+                    document.body.removeChild(modal);
+                });
+                
                 return '';
             }
             return result;
