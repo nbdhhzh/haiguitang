@@ -49,6 +49,9 @@
     </header>
     <div class="container">
         <h1>选择海龟汤谜题</h1>
+        <div style="text-align: center;">
+            <button id="random-btn">随机来一个</button>    
+        </div>
         <div id="game-list" class="game-list">
             <!-- 游戏列表将通过JS动态加载 -->
         </div>
@@ -115,12 +118,21 @@
                         window.location.href = `game.html?puzzle=${encodeURIComponent(puzzle.file)}`;
                     });
                     
-                    gameList.appendChild(card);
-                });
-            } catch (error) {
-                gameList.innerHTML = `<div class="error">加载游戏列表失败: ${error.message}</div>`;
-            }
-        });
+                gameList.appendChild(card);
+            });
+
+            // 添加随机选择按钮事件
+            const randomBtn = document.getElementById('random-btn');
+            randomBtn.addEventListener('click', () => {
+                if (puzzles.length > 0) {
+                    const randomPuzzle = puzzles[Math.floor(Math.random() * puzzles.length)];
+                    window.location.href = `game.html?puzzle=${encodeURIComponent(randomPuzzle.file)}`;
+                }
+            });
+        } catch (error) {
+            gameList.innerHTML = `<div class="error">加载游戏列表失败: ${error.message}</div>`;
+        }
+    });
     </script>
 </body>
 </html>
