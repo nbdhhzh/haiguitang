@@ -77,6 +77,8 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentPuzzle = null;
     let currentPuzzleFile = null;
     let cluesGiven = [];
+    let funRating = 0;
+    let logicRating = 0;
 
     // 保存状态
     function saveState() {
@@ -84,7 +86,9 @@ document.addEventListener('DOMContentLoaded', function() {
             puzzle: currentPuzzle,
             file: currentPuzzleFile,
             clues: cluesGiven,
-            chatHistory: document.getElementById('puzzle-display').innerHTML
+            chatHistory: document.getElementById('puzzle-display').innerHTML,
+            funRating: funRating,
+            logicRating: logicRating
         };
         
         // 直接保存到localStorage
@@ -107,7 +111,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     currentPuzzle = record.puzzle;
                     currentPuzzleFile = record.file;
                     cluesGiven = record.clues || [];
+                    funRating = record.funRating || 0;
+                    logicRating = record.logicRating || 0;
                     document.getElementById('puzzle-display').innerHTML = record.chatHistory || '';
+                    if (funRating > 0) {
+                        lockUI();
+                    }
                     return true;
                 }
             } catch (error) {
@@ -174,6 +183,8 @@ ${currentPuzzle}
     function lockUI() {
         userInput.disabled = true;
         submitBtn.disabled = true;
+        getHintBtn.disabled = true;
+        solveBtn.disabled = true;
         userInput.placeholder = "处理中...";
     }
 
@@ -181,6 +192,8 @@ ${currentPuzzle}
     function unlockUI() {
         userInput.disabled = false;
         submitBtn.disabled = false;
+        getHintBtn.disabled = false;
+        solveBtn.disabled = false;
         userInput.placeholder = "输入你的猜测...";
         userInput.focus();
     }
@@ -403,23 +416,10 @@ ${currentPuzzle}
 
         // 添加提交按钮事件 (改为async函数)
         document.getElementById('submitRating').addEventListener('click', async () => {
-            const funRating = modal.dataset.funRating || 0;
-            const logicRating = modal.dataset.logicRating || 0;
+            funRating = modal.dataset.funRating || 0;
+            logicRating = modal.dataset.logicRating || 0;
 
             if (funRating > 0 && logicRating > 0) {
-                // 保存评分到本地存储和服务器
-                const ratingData = {
-                    puzzle: currentPuzzle,
-                    funRating: funRating,
-                    logicRating: logicRating,
-                    date: new Date().toISOString()
-                };
-
-                // 本地存储
-                const ratings = JSON.parse(localStorage.getItem('puzzleRatings') || '[]');
-                ratings.push(ratingData);
-                localStorage.setItem('puzzleRatings', JSON.stringify(ratings));
-
                 // 在主页面显示评分结果
                 const ratingResult = document.createElement('div');
                 ratingResult.className = 'rating-result';
@@ -430,6 +430,7 @@ ${currentPuzzle}
                 chatContainer.appendChild(ratingResult);
 
                 // 直接关闭弹窗
+                lockUI();
                 document.body.removeChild(modal);
                 saveState();
             } else {
