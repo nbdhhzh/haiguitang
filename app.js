@@ -166,6 +166,10 @@ ${currentPuzzle}
     solveBtn.addEventListener('click', () => {
         if (!currentPuzzle) return;
         
+        // 添加确认对话框
+        const confirmed = window.confirm('查看解答后该题就结束了，是否确认查看解答？');
+        if (!confirmed) return;
+        
         const solutionMatch = currentPuzzle.match(/### 汤底([\s\S]*?)(###|$)/);
         if (solutionMatch) {
             const solution = currentPuzzle.match(/### 汤底([\s\S]*?)(###|$)/)[1].trim();
@@ -185,7 +189,7 @@ ${currentPuzzle}
         submitBtn.disabled = true;
         getHintBtn.disabled = true;
         solveBtn.disabled = true;
-        userInput.placeholder = "处理中...";
+        userInput.placeholder = "";
     }
 
     // 解锁UI
