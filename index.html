@@ -36,6 +36,12 @@
             -webkit-line-clamp: 3;
             -webkit-box-orient: vertical;
         }
+        .finish-record {
+            border-left: 4px solid #4CAF50;
+        }
+        .has-record {
+            border-left: 4px solid #3498DB;
+        }
     </style>
 </head>
 <body>
@@ -52,87 +58,113 @@
         <div style="text-align: center;">
             <button id="random-btn">随机来一个</button>    
         </div>
-        <div id="game-list" class="game-list">
-            <!-- 游戏列表将通过JS动态加载 -->
-        </div>
+        <div id="game-list" class="game-list"></div>
     </div>
     <script>
+        // Cookie相关函数
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+
+        function setCookie(name, value, days) {
+            const date = new Date();
+            date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+            document.cookie = `${name}=${value};expires=${date.toUTCString()};path=/`;
+        }
+
+        function getUserId() {
+            let userId = getCookie('hgt_user_id');
+            if (!userId) {
+                userId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    const r = Math.random() * 16 | 0;
+                    const v =  c === 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+                setCookie('hgt_user_id', userId, 3650);
+            }
+            return userId;
+        }
+
+        // 检查用户记录
+        async function checkUserRecord(puzzleFile, userId) {
+            try {
+                const response = await fetch(`/load-record?puzzle=${encodeURIComponent(puzzleFile.replace('.md', ''))}&userId=${encodeURIComponent(userId)}`);
+                return response.ok ? await response.json() : null;
+            } catch (error) {
+                console.error('检查用户记录出错:', error);
+                return null;
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', async function() {
+            const userId = getUserId();
             const gameList = document.getElementById('game-list');
             
             try {
-                // 从puzzles.json获取谜题列表
+                // 加载谜题列表
                 const listResponse = await fetch('puzzles/puzzles.json');
-                if (!listResponse.ok) {
-                    throw new Error('无法加载谜题列表');
-                }
-                const puzzleFiles = await listResponse.json();
+                if (!listResponse.ok) throw new Error('无法加载谜题列表');
                 
-                if (puzzleFiles.length === 0) {
-                    throw new Error('没有找到任何谜题文件');
-                }
+                const puzzleFiles = await listResponse.json();
+                if (puzzleFiles.length === 0) throw new Error('没有找到任何谜题文件');
 
-                // 获取并验证所有谜题数据
-                const puzzles = [];
+                // 加载并显示每个谜题
                 for (const file of puzzleFiles) {
                     try {
                         const response = await fetch(`puzzles/${encodeURI(file)}`);
                         if (!response.ok) continue;
                         
                         const content = await response.text();
-                        // 验证内容格式
                         if (!content.includes('### 汤面') || !content.includes('### 汤底')) {
                             console.warn(`谜题文件格式不正确: ${file}`);
                             continue;
                         }
                         
-                        puzzles.push({
-                            name: decodeURIComponent(file.replace('.md', '')),
-                            file: file,
-                            content: content
+                        const puzzleText = content.split('### 汤面')[1].split('### 汤底')[0].trim();
+                        const userRecord = await checkUserRecord(file, userId);
+                        const hasRecord = userRecord !== null;
+
+                        const card = document.createElement('div');
+                        if (hasRecord) {
+                            card.className = `game-card ${userRecord.funRating == 0 ? 'has-record' : 'finish-record'}`;
+                            card.innerHTML = `
+                                <div class="game-title">${file.replace('.md', '')} <span class="status-badge" style="float: right; color: ${userRecord.funRating === 0 ? '#3498DB' : '#4CAF50'}; font-size: 0.7em; font-weight: normal">${userRecord.funRating === 0 ? '未完成' : '已完成'}</span></div>
+                                <div class="game-preview">${puzzleText.substring(0, 100)}...</div>
+                            `;
+                        } else {
+                            card.className = `game-card`;
+                            card.innerHTML = `
+                                <div class="game-title">${file.replace('.md', '')}</div>
+                                <div class="game-preview">${puzzleText.substring(0, 100)}...</div>
+                            `;
+                        }
+                            
+                        
+                        
+                        card.addEventListener('click', () => {
+                            window.location.href = `game.html?puzzle=${encodeURIComponent(file)}`;
                         });
+                        
+                        gameList.appendChild(card);
                     } catch (error) {
                         console.error(`加载谜题失败: ${error.message}`);
                     }
                 }
 
-                // 为每个游戏创建卡片
-                puzzles.forEach(puzzle => {
-                    // 提取汤面部分
-                    let puzzleText = puzzle.content;
-                    const puzzleMatch = puzzle.content.match(/### 汤面([\s\S]*?)### 汤底/);
-                    if (puzzleMatch) {
-                        puzzleText = puzzleMatch[1].trim();
+                // 随机选择按钮
+                document.getElementById('random-btn').addEventListener('click', () => {
+                    if (puzzleFiles.length > 0) {
+                        const randomFile = puzzleFiles[Math.floor(Math.random() * puzzleFiles.length)];
+                        window.location.href = `game.html?puzzle=${encodeURIComponent(randomFile)}`;
                     }
-                    
-                    // 创建游戏卡片
-                    const card = document.createElement('div');
-                    card.className = 'game-card';
-                    card.innerHTML = `
-                        <div class="game-title">${puzzle.name}</div>
-                        <div class="game-preview">${puzzleText.substring(0, 100)}...</div>
-                    `;
-                    
-                    // 添加点击事件
-                    card.addEventListener('click', () => {
-                        window.location.href = `game.html?puzzle=${encodeURIComponent(puzzle.file)}`;
-                    });
-                    
-                gameList.appendChild(card);
-            });
+                });
 
-            // 添加随机选择按钮事件
-            const randomBtn = document.getElementById('random-btn');
-            randomBtn.addEventListener('click', () => {
-                if (puzzles.length > 0) {
-                    const randomPuzzle = puzzles[Math.floor(Math.random() * puzzles.length)];
-                    window.location.href = `game.html?puzzle=${encodeURIComponent(randomPuzzle.file)}`;
-                }
-            });
-        } catch (error) {
-            gameList.innerHTML = `<div class="error">加载游戏列表失败: ${error.message}</div>`;
-        }
-    });
+            } catch (error) {
+                gameList.innerHTML = `<div class="error">加载游戏列表失败: ${error.message}</div>`;
+            }
+        });
     </script>
 </body>
 </html>
