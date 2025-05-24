@@ -98,47 +98,27 @@
             }
         }
 
-        // 预加载优化
-        const puzzleCache = {
-            data: null,
-            load: async function() {
-                try {
-                    const response = await fetch('puzzles/puzzles.json');
-                    if (response.ok) this.data = await response.json();
-                } catch (e) {
-                    console.error('预加载失败:', e);
-                }
-            }
-        };
-        puzzleCache.load();
-
         document.addEventListener('DOMContentLoaded', async function() {
             const userId = getUserId();
             const gameList = document.getElementById('game-list');
             
             try {
-                // 使用预加载或重新加载
-                if (!puzzleCache.data) {
-                    puzzleCache.data = await fetch('puzzles/puzzles.json').then(r => r.json());
-                }
-                
-                const puzzleFiles = puzzleCache.data;
-                if (puzzleFiles.length === 0) throw new Error('没有找到任何谜题文件');
 
                 const userRecords = await checkUserRecord(userId);
+                console.log(userRecords)
 
                 // 并行加载所有谜题内容
-                const puzzleLoadPromises = puzzleFiles.map(file => 
-                    fetch(`puzzles/${encodeURI(file)}`)
-                        .then(response => response.ok ? response.text() : Promise.reject('加载失败'))
-                        .catch(() => null)
-                );
-                const puzzleContents = await Promise.all(puzzleLoadPromises);
+                const response = await fetch(`/puzzles`);
+                puzzleContents = response.ok ? await response.json() : null;
+                puzzleFiles = Object.keys(puzzleContents);
+                if (puzzleFiles.length === 0) throw new Error('没有找到任何谜题文件');
+                console.log(puzzleFiles)
+                console.log(puzzleContents)
 
                 // 一次性渲染所有谜题卡片
                 puzzleFiles.forEach((file, index) => {
                     try {
-                        const content = puzzleContents[index];
+                        const content = puzzleContents[file];
                         if (!content || !content.includes('### 汤面') || !content.includes('### 汤底')) {
                             console.warn(`谜题文件格式不正确: ${file}`);
                             return;
@@ -146,7 +126,7 @@
                         
                         const puzzleText = content.split('### 汤面')[1].split('### 汤底')[0].trim();
                         // const userRecord = userRecords[index];
-                        const userRecord = userRecords[file.replace('.md', '')] || null;
+                        const userRecord = userRecords[file] || null;
                         const hasRecord = userRecord !== null;
 
                         const card = document.createElement('div');
@@ -179,8 +159,8 @@
                     if (puzzleFiles.length > 0) {
                         // 过滤出未完成的谜题
                         const unfinishedPuzzles = puzzleFiles.filter((file, index) => {
-                            const userRecord = userRecords[index];
-                            return !userRecord || userRecord.funRating !== 1;
+                            const userRecord = userRecords[file] || null;
+                            return !userRecord || userRecord.funRating == 0;
                         });
                         
                         if (unfinishedPuzzles.length > 0) {

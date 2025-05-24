@@ -8,6 +8,21 @@ app = Flask(__name__)
 os.makedirs('records', exist_ok=True)
 os.makedirs('puzzles', exist_ok=True)
 
+@app.route('/puzzles', methods=['GET'])
+def get_all_puzzles():
+    """
+    Returns all puzzles in JSON format: {filename: content}
+    """
+    puzzles = {}
+    for filename in os.listdir('puzzles'):
+        if filename.endswith('.md'):
+            with open(os.path.join('puzzles', filename), 'r', encoding='utf-8') as f:
+                puzzles[filename] = f.read()
+    
+    resp = Response(json.dumps(puzzles, ensure_ascii=False).encode('utf-8'), status=200)
+    resp.headers['Content-type'] = 'application/json'
+    return resp
+
 @app.route('/puzzles/<path:subpath>', methods=['GET'])
 def get_puzzle(subpath):
     """
@@ -50,12 +65,13 @@ def load_record():
     puzzle = request.args.get('puzzle')
     userId = request.args.get('userId')
 
+    if not os.path.exists('records'):
+        os.makedirs('records')
     record_path = os.path.join('records', f'{userId or ""}.json')
-
     try:
         if not os.path.exists(record_path):
-            resp = Response(status=404)
-            return resp
+            with open(record_path, 'w', encoding='utf-8') as f:
+                json.dump({}, f)
             
         with open(record_path, 'r', encoding='utf-8') as f:
             user_records = json.load(f)
@@ -64,7 +80,7 @@ def load_record():
             if not puzzle:
                 json_content = json.dumps(user_records, ensure_ascii=False).encode('utf-8')
             else:
-                record = user_records.get(puzzle)
+                record = user_records.get(puzzle + ".md")
                 if not record:
                     resp = Response(status=404)
                     return resp
@@ -97,7 +113,7 @@ def save_record():
         
         # 原始代码没有对 data 的结构进行严格检查，而是直接访问键
         # 如果键不存在，会引发 KeyError，然后被外层 except 捕获
-        puzzle = data['puzzle']
+        puzzle = data['puzzle'] + '.md'
         userId = data['userId']
         record_data = data['data']
         
