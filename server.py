@@ -44,17 +44,17 @@ def get_puzzle(subpath):
 def load_record():
     """
     Handles GET requests for /load-record
-    Loads and returns a JSON record based on 'puzzle' and 'ip' query parameters.
+    Loads and returns a JSON record based on 'puzzle' and 'userId' query parameters.
     """
     puzzle = request.args.get('puzzle')
-    ip = request.args.get('ip')
+    userId = request.args.get('userId')
 
     # 原始代码在缺少参数时没有明确处理，这里会直接导致路径错误，最终走到 500。
     # 为了更精确地模拟，我们不主动检查这些。
     # 如果要像原始代码那样在参数缺失时表现出 FileNotFoundError 或其他异常，
     # 那么下面的 os.path.join 就会抛出异常，然后被 try-except 捕获。
     
-    record_path = os.path.join('records', puzzle or '', f'{ip or ""}.json') # 确保即使 puzzle 或 ip 为 None 也能构建路径
+    record_path = os.path.join('records', puzzle or '', f'{userId or ""}.json') # 确保即使 puzzle 或 userId 为 None 也能构建路径
 
     try:
         if not os.path.exists(record_path):
@@ -93,13 +93,13 @@ def save_record():
         # 原始代码没有对 data 的结构进行严格检查，而是直接访问键
         # 如果键不存在，会引发 KeyError，然后被外层 except 捕获
         puzzle = data['puzzle']
-        ip = data['ip']
+        userId = data['userId']
         record_data = data['data']
         
         record_dir = os.path.join('records', puzzle)
         os.makedirs(record_dir, exist_ok=True)
         
-        record_path = os.path.join(record_dir, f'{ip}.json')
+        record_path = os.path.join(record_dir, f'{userId}.json')
         with open(record_path, 'w', encoding='utf-8') as f:
             json.dump(record_data, f, ensure_ascii=False)
         

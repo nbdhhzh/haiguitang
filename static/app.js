@@ -6,7 +6,7 @@ const initDB = new Promise((resolve) => {
     request.onupgradeneeded = (event) => {
         db = event.target.result;
         if (!db.objectStoreNames.contains('userRecords')) {
-            db.createObjectStore('userRecords', { keyPath: ['puzzle', 'ip'] });
+            db.createObjectStore('userRecords', { keyPath: ['puzzle', 'userId'] });
         }
     };
     
@@ -20,10 +20,43 @@ const initDB = new Promise((resolve) => {
     };
 });
 
+// 生成随机ID
+function generateRandomId() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v =  c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
+// 解析cookie
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+}
+
+// 设置cookie
+function setCookie(name, value, days) {
+    const date = new Date();
+    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+    document.cookie = `${name}=${value};expires=${date.toUTCString()};path=/`;
+}
+
+// 获取或创建用户ID
+function getUserId() {
+    let userId = getCookie('hgt_user_id');
+    if (!userId) {
+        userId = generateRandomId();
+        setCookie('hgt_user_id', userId, 3650); // 1年有效期
+    }
+    return userId;
+}
+
 // 保存用户记录
 async function saveUserRecord(puzzleFile, recordData) {
     try {
-        const {ip} = await fetch('https://api.ipify.org?format=json').then(res => res.json());
+        const userId = getUserId();
         const puzzleName = puzzleFile.replace('.md', '');
         
         const response = await fetch('/save-record', {
@@ -33,13 +66,13 @@ async function saveUserRecord(puzzleFile, recordData) {
             },
             body: JSON.stringify({
                 puzzle: puzzleName,
-                ip: ip,
+                userId: userId,
                 data: recordData
             })
         });
         
         if (!response.ok) {
-            throw new Error('保存记录失败');
+            throw newError('保存记录失败');
         }
         return true;
     } catch (error) {
@@ -51,9 +84,10 @@ async function saveUserRecord(puzzleFile, recordData) {
 // 加载用户记录
 async function loadUserRecord(puzzleFile) {
     try {
-        const {ip} = await fetch('https://api.ipify.org?format=json').then(res => res.json());
+        const userId = getUserId();
         const puzzleName = puzzleFile.replace('.md', '');
-        const response = await fetch(`/load-record?puzzle=${encodeURIComponent(puzzleName)}&ip=${encodeURIComponent(ip)}`);
+        const response = 
+            await fetch(`/load-record?puzzle=${encodeURIComponent(puzzleName)}&userId=${encodeURIComponent(userId)}`);
         if (!response.ok) {
             console.log('没有找到记录文件');
             return null;
