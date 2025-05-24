@@ -98,32 +98,58 @@
             }
         }
 
+        // 预加载优化
+        const puzzleCache = {
+            data: null,
+            load: async function() {
+                try {
+                    const response = await fetch('puzzles/puzzles.json');
+                    if (response.ok) this.data = await response.json();
+                } catch (e) {
+                    console.error('预加载失败:', e);
+                }
+            }
+        };
+        puzzleCache.load();
+
         document.addEventListener('DOMContentLoaded', async function() {
             const userId = getUserId();
             const gameList = document.getElementById('game-list');
             
             try {
-                // 加载谜题列表
-                const listResponse = await fetch('puzzles/puzzles.json');
-                if (!listResponse.ok) throw new Error('无法加载谜题列表');
+                // 使用预加载或重新加载
+                if (!puzzleCache.data) {
+                    puzzleCache.data = await fetch('puzzles/puzzles.json').then(r => r.json());
+                }
                 
-                const puzzleFiles = await listResponse.json();
+                const puzzleFiles = puzzleCache.data;
                 if (puzzleFiles.length === 0) throw new Error('没有找到任何谜题文件');
 
-                // 加载并显示每个谜题
-                for (const file of puzzleFiles) {
+                // 批量检查用户记录
+                const recordCheckPromises = puzzleFiles.map(file => 
+                    checkUserRecord(file, userId).catch(() => null)
+                );
+                const userRecords = await Promise.all(recordCheckPromises);
+
+                // 并行加载所有谜题内容
+                const puzzleLoadPromises = puzzleFiles.map(file => 
+                    fetch(`puzzles/${encodeURI(file)}`)
+                        .then(response => response.ok ? response.text() : Promise.reject('加载失败'))
+                        .catch(() => null)
+                );
+                const puzzleContents = await Promise.all(puzzleLoadPromises);
+
+                // 一次性渲染所有谜题卡片
+                puzzleFiles.forEach((file, index) => {
                     try {
-                        const response = await fetch(`puzzles/${encodeURI(file)}`);
-                        if (!response.ok) continue;
-                        
-                        const content = await response.text();
-                        if (!content.includes('### 汤面') || !content.includes('### 汤底')) {
+                        const content = puzzleContents[index];
+                        if (!content || !content.includes('### 汤面') || !content.includes('### 汤底')) {
                             console.warn(`谜题文件格式不正确: ${file}`);
-                            continue;
+                            return;
                         }
                         
                         const puzzleText = content.split('### 汤面')[1].split('### 汤底')[0].trim();
-                        const userRecord = await checkUserRecord(file, userId);
+                        const userRecord = userRecords[index];
                         const hasRecord = userRecord !== null;
 
                         const card = document.createElement('div');
@@ -140,8 +166,6 @@
                                 <div class="game-preview">${puzzleText.substring(0, 100)}...</div>
                             `;
                         }
-                            
-                        
                         
                         card.addEventListener('click', () => {
                             window.location.href = `game.html?puzzle=${encodeURIComponent(file)}`;
@@ -151,13 +175,23 @@
                     } catch (error) {
                         console.error(`加载谜题失败: ${error.message}`);
                     }
-                }
+                });
 
                 // 随机选择按钮
                 document.getElementById('random-btn').addEventListener('click', () => {
                     if (puzzleFiles.length > 0) {
-                        const randomFile = puzzleFiles[Math.floor(Math.random() * puzzleFiles.length)];
-                        window.location.href = `game.html?puzzle=${encodeURIComponent(randomFile)}`;
+                        // 过滤出未完成的谜题
+                        const unfinishedPuzzles = puzzleFiles.filter((file, index) => {
+                            const userRecord = userRecords[index];
+                            return !userRecord || userRecord.funRating !== 1;
+                        });
+                        
+                        if (unfinishedPuzzles.length > 0) {
+                            const randomFile = unfinishedPuzzles[Math.floor(Math.random() * unfinishedPuzzles.length)];
+                            window.location.href = `game.html?puzzle=${encodeURIComponent(randomFile)}`;
+                        } else {
+                            alert('所有谜题已完成！');
+                        }
                     }
                 });
 
