@@ -397,7 +397,7 @@ ${currentPuzzle}
                     
                     // 检查响应格式和长度
                     const answerMatch = response.match(/\{(.*?)\}/);
-                    if (answerMatch) {
+                    if (answerMatch && answerMatch[1].length <= 10) {
                         window.lastAPIResponse = {
                             request: messages,
                             response: response
@@ -561,7 +561,7 @@ ${currentPuzzle}
                     
                     // 检查响应格式和长度
                     const resultMatch = response.match(/\{(.*?)\}/);
-                    if (resultMatch) {
+                    if (resultMatch && resultMatch[0].length <= 10) {
                         window.lastAPIResponse = {
                             request: messages,
                             response: response
