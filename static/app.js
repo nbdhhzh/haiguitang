@@ -165,16 +165,34 @@ document.addEventListener('DOMContentLoaded', function() {
         lockUI();
         
         try {
-            const response = await callOpenRouterAPI([
-                { role: "system", content: `你是一个海龟汤游戏主持人，根据以下谜题提供一个不泄露谜底的提示：
+            let response;
+            let attempts = 0;
+            while (attempts < 5) {
+                try {
+                    response = await callOpenRouterAPI([
+                        { role: "system", content: `你是一个海龟汤游戏主持人，根据以下谜题提供一个不泄露谜底的提示：
 谜题: 
 ${currentPuzzle}
 
 规则:
 1. 提示应该引导思考但不要直接给出答案
 2. 提示应该简短明了，以 "提示：" 开头` },
-                { role: "user", content: "请给我一个提示" }
-            ]);
+                        { role: "user", content: "请给我一个提示" }
+                    ]);
+                    
+                    // 检查响应格式和长度
+                    if (response && response.length <= 50 && response.includes('提示：')) {
+                        break;
+                    }
+                } catch (error) {
+                    console.error(`获取提示失败(尝试 ${attempts + 1}):`, error);
+                }
+                attempts++;
+            }
+            
+            if (attempts >= 5) {
+                throw new Error('无法获取有效的提示');
+            }
             
             const container = document.createElement('div');
             container.className = 'message-container';
@@ -363,20 +381,38 @@ ${currentPuzzle}
 ${currentPuzzle}
 
 规则:
-1. 先在<think></think>中对谜题和猜题者的问题进行简单分析，然后再给出判断
+1. 先对汤底和猜题者的问题进行思考，然后再给出判断
 2. 最后的判断用大括号括起来，必须是"{是}"、"{不是}"、"{是也不是}"或"{没有关系}"四者其一
 3. 汤面是猜题者可以看到的信息，汤底是猜题者看不到的信息，请更多根据汤底信息来判断
-4. 如果问题部分正确回答"{是也不是}"
+4. 如果问题部分正确并且部分错误回答"{是也不是}"，尽量少使用该判断
 5. 如果问题与谜题无关回答"{没有关系}"` },
                 { role: "user", content: question }
             ];
             
-            const response = await callOpenRouterAPI(messages);
+            let response;
+            let attempts = 0;
+            while (attempts < 5) {
+                try {
+                    response = await callOpenRouterAPI(messages);
+                    
+                    // 检查响应格式和长度
+                    const answerMatch = response.match(/\{(.*?)\}/);
+                    if (answerMatch) {
+                        window.lastAPIResponse = {
+                            request: messages,
+                            response: response
+                        };
+                        break;
+                    }
+                } catch (error) {
+                    console.error(`回答问题失败(尝试 ${attempts + 1}):`, error);
+                }
+                attempts++;
+            }
             
-            window.lastAPIResponse = {
-                request: messages,
-                response: response
-            };
+            if (attempts >= 5) {
+                throw new Error('无法获取有效的回答');
+            }
             
             const answerMatch = response.match(/\{(.*?)\}/);
             const answer = answerMatch ? answerMatch[1] : response;
@@ -510,18 +546,37 @@ ${currentPuzzle}
 ${currentPuzzle}
 
 规则:
-1. 先在<think></think>中对谜题和猜题者的答案进行简单分析，然后再给出判断
+1. 先对汤底和猜题者的答案进行思考，然后再给出判断
 2. 最后的判断用大括号括起来，必须是"{完全正确}"、"{部分正确}"或"{完全错误}"三者其一
 3. 汤面是猜题者可以看到的信息，汤底是猜题者看不到的信息，请更多根据汤底信息来判断
-4. 如果答案部分正确却很不完整，回答"{部分正确}"` },
+4. 如果答案部分正确却缺失了很多关键信息，回答"{部分正确}"` },
                 { role: "user", content: `汤底: ${solution}` }
             ];
 
-            const response = await callOpenRouterAPI(messages);
-            window.lastAPIResponse = {
-                request: messages,
-                response: response
-            };
+            let response;
+            let attempts = 0;
+            while (attempts < 5) {
+                try {
+                    response = await callOpenRouterAPI(messages);
+                    
+                    // 检查响应格式和长度
+                    const resultMatch = response.match(/\{(.*?)\}/);
+                    if (resultMatch) {
+                        window.lastAPIResponse = {
+                            request: messages,
+                            response: response
+                        };
+                        break;
+                    }
+                } catch (error) {
+                    console.error(`验证谜底失败(尝试 ${attempts + 1}):`, error);
+                }
+                attempts++;
+            }
+            
+            if (attempts >= 5) {
+                throw new Error('无法验证谜底');
+            }
             
             const resultMatch = response.match(/\{(.*?)\}/);
             const result = resultMatch ? resultMatch[1] : response;
