@@ -6,7 +6,7 @@ app = Flask(__name__)
 
 # 确保 'records' 和 'puzzles' 目录存在
 os.makedirs('records', exist_ok=True)
-os.makedirs('puzzles', exist_ok=True)
+os.makedirs('static/puzzles', exist_ok=True)
 
 @app.route('/puzzles', methods=['GET'])
 def get_all_puzzles():
@@ -14,9 +14,9 @@ def get_all_puzzles():
     Returns all puzzles in JSON format: {filename: content}
     """
     puzzles = {}
-    for filename in os.listdir('puzzles'):
+    for filename in os.listdir('static/puzzles'):
         if filename.endswith('.md'):
-            with open(os.path.join('puzzles', filename), 'r', encoding='utf-8') as f:
+            with open(os.path.join('static/puzzles', filename), 'r', encoding='utf-8') as f:
                 puzzles[filename] = f.read()
     
     resp = Response(json.dumps(puzzles, ensure_ascii=False).encode('utf-8'), status=200)
@@ -31,18 +31,17 @@ def get_puzzle(subpath):
     """
     try:
         # 模拟原始行为：直接拼接路径，然后打开文件
-        file_path = os.path.join('puzzles', subpath)
+        file_path = os.path.join('static/puzzles', subpath)
         
         # 确保路径是安全的，防止目录遍历攻击 (虽然send_from_directory更安全，这里手动模拟)
         # 这是一个简单的检查，更严谨的生产环境应使用 werkzeug.utils.safe_join
-        if not os.path.normpath(file_path).startswith(os.path.normpath('puzzles')):
+        if not os.path.normpath(file_path).startswith(os.path.normpath('static/puzzles')):
             abort(403) # Forbidden
 
         if not os.path.exists(file_path):
             # 模拟原始的 404 响应
             resp = Response(b'404 Not Found', status=404)
             return resp
-
         with open(file_path, 'rb') as f:
             content = f.read()
             # 模拟原始的 200 响应和头部信息
@@ -151,10 +150,6 @@ def serve_static(filename):
     Serves any other static files from the root directory.
     """
     try:
-        # 默认Content-Type和Cache-Control由 send_from_directory 智能处理，
-        # 并且与 SimpleHTTPRequestHandler 的行为高度一致。
-        # 如果需要精确到字节的完全一致，这部分会更复杂，需要手动读取文件并设置 MIME 类型。
-        # 但对于大部分前端请求，send_from_directory 的行为足够。
         return send_from_directory('.', filename)
     except FileNotFoundError:
         resp = Response(b'404 Not Found', status=404)
@@ -187,5 +182,5 @@ def not_found_error(error):
 
 # 运行 Flask 应用
 if __name__ == '__main__':
-    print("Starting Flask server on port 8001...")
-    app.run(host='0.0.0.0', port=8001, debug=True) # 在生产环境中请关闭 debug=True
+    print("Starting Flask server on port 8080...")
+    app.run(host='0.0.0.0', port=8080, debug=True) # 在生产环境中请关闭 debug=True

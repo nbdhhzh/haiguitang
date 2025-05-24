@@ -105,15 +105,15 @@
             try {
 
                 const userRecords = await checkUserRecord(userId);
-                console.log(userRecords)
+                console.log(userRecords);
 
                 // 并行加载所有谜题内容
                 const response = await fetch(`/puzzles`);
                 puzzleContents = response.ok ? await response.json() : null;
                 puzzleFiles = Object.keys(puzzleContents);
                 if (puzzleFiles.length === 0) throw new Error('没有找到任何谜题文件');
-                console.log(puzzleFiles)
-                console.log(puzzleContents)
+                console.log(puzzleFiles);
+                console.log(puzzleContents);
 
                 // 一次性渲染所有谜题卡片
                 puzzleFiles.forEach((file, index) => {
