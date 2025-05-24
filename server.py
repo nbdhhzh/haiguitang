@@ -45,26 +45,31 @@ def load_record():
     """
     Handles GET requests for /load-record
     Loads and returns a JSON record based on 'puzzle' and 'userId' query parameters.
+    If puzzle is not specified, returns all records for the user.
     """
     puzzle = request.args.get('puzzle')
     userId = request.args.get('userId')
 
-    # 原始代码在缺少参数时没有明确处理，这里会直接导致路径错误，最终走到 500。
-    # 为了更精确地模拟，我们不主动检查这些。
-    # 如果要像原始代码那样在参数缺失时表现出 FileNotFoundError 或其他异常，
-    # 那么下面的 os.path.join 就会抛出异常，然后被 try-except 捕获。
-    
-    record_path = os.path.join('records', puzzle or '', f'{userId or ""}.json') # 确保即使 puzzle 或 userId 为 None 也能构建路径
+    record_path = os.path.join('records', f'{userId or ""}.json')
 
     try:
         if not os.path.exists(record_path):
-            # 模拟原始的 404 响应 (只有状态码，无内容)
             resp = Response(status=404)
             return resp
             
         with open(record_path, 'r', encoding='utf-8') as f:
-            record = json.load(f)
-            json_content = json.dumps(record, ensure_ascii=False).encode('utf-8')
+            user_records = json.load(f)
+            
+            # 如果没有指定puzzle，返回全部记录
+            if not puzzle:
+                json_content = json.dumps(user_records, ensure_ascii=False).encode('utf-8')
+            else:
+                record = user_records.get(puzzle)
+                if not record:
+                    resp = Response(status=404)
+                    return resp
+                json_content = json.dumps(record, ensure_ascii=False).encode('utf-8')
+            
             # 模拟原始的 200 响应和头部信息
             resp = Response(json_content, status=200)
             resp.headers['Content-type'] = 'application/json'
@@ -96,12 +101,21 @@ def save_record():
         userId = data['userId']
         record_data = data['data']
         
-        record_dir = os.path.join('records', puzzle)
-        os.makedirs(record_dir, exist_ok=True)
+        # 每个用户一个json文件，内部按题目存储
+        record_path = os.path.join('records', f'{userId}.json')
+        user_records = {}
         
-        record_path = os.path.join(record_dir, f'{userId}.json')
+        # 如果文件已存在，先读取现有记录
+        if os.path.exists(record_path):
+            with open(record_path, 'r', encoding='utf-8') as f:
+                user_records = json.load(f)
+        
+        # 更新或添加当前题目的记录
+        user_records[puzzle] = record_data
+        
+        # 写入更新后的记录
         with open(record_path, 'w', encoding='utf-8') as f:
-            json.dump(record_data, f, ensure_ascii=False)
+            json.dump(user_records, f, ensure_ascii=False, indent=2)
         
         # 模拟原始的 200 响应
         resp = Response(b'Record saved successfully', status=200)

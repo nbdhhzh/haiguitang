@@ -88,9 +88,9 @@
         }
 
         // 检查用户记录
-        async function checkUserRecord(puzzleFile, userId) {
+        async function checkUserRecord(userId) {
             try {
-                const response = await fetch(`/load-record?puzzle=${encodeURIComponent(puzzleFile.replace('.md', ''))}&userId=${encodeURIComponent(userId)}`);
+                const response = await fetch(`/load-record?userId=${encodeURIComponent(userId)}`);
                 return response.ok ? await response.json() : null;
             } catch (error) {
                 console.error('检查用户记录出错:', error);
@@ -125,11 +125,7 @@
                 const puzzleFiles = puzzleCache.data;
                 if (puzzleFiles.length === 0) throw new Error('没有找到任何谜题文件');
 
-                // 批量检查用户记录
-                const recordCheckPromises = puzzleFiles.map(file => 
-                    checkUserRecord(file, userId).catch(() => null)
-                );
-                const userRecords = await Promise.all(recordCheckPromises);
+                const userRecords = await checkUserRecord(userId);
 
                 // 并行加载所有谜题内容
                 const puzzleLoadPromises = puzzleFiles.map(file => 
@@ -149,7 +145,8 @@
                         }
                         
                         const puzzleText = content.split('### 汤面')[1].split('### 汤底')[0].trim();
-                        const userRecord = userRecords[index];
+                        // const userRecord = userRecords[index];
+                        const userRecord = userRecords[file.replace('.md', '')] || null;
                         const hasRecord = userRecord !== null;
 
                         const card = document.createElement('div');
