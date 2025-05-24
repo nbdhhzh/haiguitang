@@ -57,15 +57,13 @@ function getUserId() {
 async function saveUserRecord(puzzleFile, recordData) {
     try {
         const userId = getUserId();
-        const puzzleName = puzzleFile.replace('.md', '');
-        
         const response = await fetch('/save-record', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                puzzle: puzzleName,
+                puzzle: puzzleFile,
                 userId: userId,
                 data: recordData
             })
@@ -85,9 +83,8 @@ async function saveUserRecord(puzzleFile, recordData) {
 async function loadUserRecord(puzzleFile) {
     try {
         const userId = getUserId();
-        const puzzleName = puzzleFile.replace('.md', '');
         const response = 
-            await fetch(`/load-record?puzzle=${encodeURIComponent(puzzleName)}&userId=${encodeURIComponent(userId)}`);
+            await fetch(`/load-record?puzzle=${encodeURIComponent(puzzleFile)}&userId=${encodeURIComponent(userId)}`);
         if (!response.ok) {
             console.log('没有找到记录文件');
             return null;
@@ -448,7 +445,14 @@ ${currentPuzzle}
             star.addEventListener('click', function () {
                 const ratingType = this.getAttribute('data-rating');
                 const value = parseInt(this.getAttribute('data-value'));
+                selectedRating[ratingType] = value;
                 modal.dataset[`${ratingType}Rating`] = value;
+                highlightStars(ratingType, value);
+            });
+            
+            star.addEventListener('mouseout', function() {
+                const ratingType = this.getAttribute('data-rating');
+                resetStars(ratingType);
             });
         });
 
@@ -476,10 +480,20 @@ ${currentPuzzle}
             }
         });
 
+        let selectedRating = { fun: 0, logic: 0 };
+        
         function highlightStars(ratingType, value) {
             modal.querySelectorAll(`.star[data-rating="${ratingType}"]`).forEach(star => {
                 const starValue = parseInt(star.getAttribute('data-value'));
                 star.style.color = starValue <= value ? '#FFD700' : '#ccc';
+            });
+        }
+        
+        function resetStars(ratingType) {
+            const currentRating = selectedRating[ratingType] || 0;
+            modal.querySelectorAll(`.star[data-rating="${ratingType}"]`).forEach(star => {
+                const starValue = parseInt(star.getAttribute('data-value'));
+                star.style.color = starValue <= currentRating ? '#FFD700' : '#ccc';
             });
         }
 

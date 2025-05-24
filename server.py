@@ -79,7 +79,7 @@ def load_record():
             if not puzzle:
                 json_content = json.dumps(user_records, ensure_ascii=False).encode('utf-8')
             else:
-                record = user_records.get(puzzle + ".md")
+                record = user_records.get(puzzle)
                 if not record:
                     resp = Response(status=404)
                     return resp
@@ -112,7 +112,7 @@ def save_record():
         
         # 原始代码没有对 data 的结构进行严格检查，而是直接访问键
         # 如果键不存在，会引发 KeyError，然后被外层 except 捕获
-        puzzle = data['puzzle'] + '.md'
+        puzzle = data['puzzle']
         userId = data['userId']
         record_data = data['data']
         
