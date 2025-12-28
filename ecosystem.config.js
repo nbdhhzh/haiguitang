@@ -1,8 +1,8 @@
 module.exports = {
-  apps : [{
+  apps: [{
     name: "haiguitang",
-    script: "uvicorn",
-    args: "server.main:app --host 127.0.0.1 --port 8080",
-    interpreter: "python3",
+    script: "python",
+    args: "-m uvicorn server.main:app --host 127.0.0.1 --port 8000",
+    interpreter: "none"
   }]
 }
