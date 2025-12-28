@@ -53,11 +53,18 @@
         <h1 id="puzzle-title" class="text-sm font-medium tracking-wide text-zinc-200 truncate px-4 opacity-0 transition-opacity duration-500">Loading...</h1>
         
         <div class="flex gap-2">
-            <button onclick="markSolved()" class="text-[10px] font-medium tracking-wider uppercase text-emerald-400 hover:text-emerald-300 border border-emerald-900/30 bg-emerald-900/10 hover:bg-emerald-900/20 px-3 py-1.5 rounded-full transition-all">
-                Solved
+            <!-- Hint Button -->
+            <button onclick="requestHint()" class="group relative flex items-center justify-center w-8 h-8 rounded-full border border-yellow-500/30 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 transition-all" title="Hint">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.001 6.001 0 00-5.304-7.65 6 6 0 00-5.304 7.65 12 18v5.25m12-5.25a6.001 6.001 0 015.304-7.65 6 6 0 015.304 7.65 12 18v5.25M12 18a2.25 2.25 0 00-2.25 2.25c0 1.152.26 2.226.714 3.195a2.25 2.25 0 004.14 0c.453-.969.714-2.043.714-3.195A2.25 2.25 0 0012 18z" />
+                </svg>
             </button>
-            <button onclick="confirmGiveUp()" class="text-[10px] font-medium tracking-wider uppercase text-zinc-500 hover:text-zinc-300 border border-zinc-800 bg-zinc-900 hover:bg-zinc-800 px-3 py-1.5 rounded-full transition-all">
-                Give Up
+            
+            <!-- Give Up Button -->
+            <button onclick="confirmGiveUp()" class="group relative flex items-center justify-center w-8 h-8 rounded-full border border-zinc-700 bg-zinc-800/50 hover:bg-red-900/20 hover:border-red-800/50 hover:text-red-400 text-zinc-400 transition-all" title="Give Up / Reveal">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 3v1.5M3 21v-6m0 0l2.77-.693a9 9 0 016.208.682l.108.054a9 9 0 006.086.71l3.114-.732a48.524 48.524 0 01-.005-10.499l-3.11.732a9 9 0 01-6.085-.711l-.108-.054a9 9 0 00-6.208-.682L3 4.5M3 15V4.5" />
+                </svg>
             </button>
         </div>
     </header>
@@ -260,6 +267,16 @@
                 const data = await res.json();
                 document.getElementById('typing').classList.add('hidden');
                 appendMessage(data.role, data.content);
+                
+                if (data.game_status === 'solved') {
+                    // Slight delay before showing modal
+                    setTimeout(() => {
+                        const modal = document.getElementById('rating-modal');
+                        modal.classList.remove('hidden');
+                        void modal.offsetWidth; 
+                        modal.classList.remove('opacity-0');
+                    }, 1500);
+                }
 
             } catch (err) {
                 document.getElementById('typing').classList.add('hidden');
@@ -267,6 +284,13 @@
                 console.error(err);
             }
         };
+
+        async function requestHint() {
+             const input = document.getElementById('user-input');
+             input.value = "请给我一点提示 (Hint please)";
+             // Dispatch submit event
+             document.getElementById('chat-form').dispatchEvent(new Event('submit', { cancelable: true }));
+        }
 
         // --- Logic for Modals ---
 

@@ -177,8 +177,8 @@ Your goal is to answer the user's questions to help them solve the puzzle.
 Rules:
 1. Only answer with "Yes", "No", or "Irrelevant".
 2. If the user's question assumes something wrong, you can say "No".
-3. If the user guesses the core truth correctly, you can confirm it and congratulate them.
-4. Do NOT reveal the truth directly unless the user has effectively solved it.
+3. If the user asks for a hint, give a subtle clue without revealing the key truth.
+4. **CRITICAL**: If the user's message clearly indicates they have figured out the core truth (the "Soup Bottom"), start your response with the exact token `[[SOLVED]]`. Then, congratulate them and briefly summarize why they are correct.
 5. Be concise.
     """
     
@@ -197,16 +197,25 @@ Rules:
         )
         ai_response = completion.choices[0].message.content
         
+        # --- Solved Check ---
+        game_status = "in_progress"
+        if "[[SOLVED]]" in ai_response:
+            game_status = "solved"
+            ai_response = ai_response.replace("[[SOLVED]]", "").strip()
+            # Update DB
+            session.status = "solved"
+            
         # --- Safety/Legality Check ---
         is_legal = True
         
         # 1. Length Check
-        if len(ai_response) > 500: 
-             is_legal = False # Too long for a Yes/No game
+        if len(ai_response) > 800: # Increased limit to allow for congratulations/hints
+             is_legal = False 
              
         # 2. Keyword Check (Simple safeguard)
-        forbidden_terms = ["汤底", "真相", "The truth is", "Answer:"]
-        if any(term in ai_response for term in forbidden_terms):
+        forbidden_terms = ["The truth is", "Answer:"]
+        # Allow specific terms if solved
+        if game_status != "solved" and any(term in ai_response for term in forbidden_terms):
              is_legal = False
              
         # Save AI Response
@@ -220,9 +229,9 @@ Rules:
         db.commit()
         
         if not is_legal:
-            return {"role": "ai", "content": "The host remains silent. (Response filtered for safety)"}
+            return {"role": "ai", "content": "The host remains silent. (Response filtered for safety)", "game_status": game_status}
 
-        return {"role": "ai", "content": ai_response}
+        return {"role": "ai", "content": ai_response, "game_status": game_status}
         
     except Exception as e:
         # Log error
