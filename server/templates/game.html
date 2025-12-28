@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Playing - Turtle Soup</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans SC', sans-serif; }
+        .glass { background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+        /* Hide scrollbar for Chrome, Safari and Opera */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        /* Hide scrollbar for IE, Edge and Firefox */
+        .no-scrollbar { -ms-overflow-style: none;  scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="glass fixed top-0 w-full z-10 px-4 py-3 flex justify-between items-center">
+        <a href="/" class="text-slate-400 hover:text-white transition">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+            </svg>
+        </a>
+        <h1 id="puzzle-title" class="text-lg font-medium text-center truncate px-4">Loading...</h1>
+        <div class="flex gap-2">
+            <button onclick="markSolved()" class="text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-900/50 bg-emerald-900/10 px-3 py-1 rounded-full">
+                我猜到了
+            </button>
+            <button onclick="confirmGiveUp()" class="text-xs text-red-400 hover:text-red-300 border border-red-900/50 bg-red-900/10 px-3 py-1 rounded-full">
+                放弃/看答案
+            </button>
+        </div>
+    </header>
+
+    <!-- Chat Area -->
+    <main id="chat-container" class="flex-1 overflow-y-auto pt-20 pb-24 px-4 space-y-4 no-scrollbar">
+        <!-- Puzzle Content Card -->
+        <div class="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50 mb-8 max-w-2xl mx-auto shadow-lg">
+            <div class="text-xs font-bold text-emerald-400 mb-2 uppercase tracking-wider">Soup Surface</div>
+            <div id="puzzle-content" class="text-lg leading-relaxed text-slate-200"></div>
+        </div>
+
+        <!-- Chat History -->
+        <div id="messages" class="max-w-2xl mx-auto space-y-4"></div>
+        
+        <!-- Typing Indicator -->
+        <div id="typing" class="hidden max-w-2xl mx-auto flex items-center space-x-2 text-slate-500 text-sm pl-4">
+            <span class="animate-pulse">●</span><span class="animate-pulse delay-100">●</span><span class="animate-pulse delay-200">●</span>
+        </div>
+    </main>
+
+    <!-- Input Area -->
+    <div class="fixed bottom-0 w-full bg-slate-900/90 backdrop-blur border-t border-slate-800 p-4">
+        <form id="chat-form" class="max-w-2xl mx-auto flex gap-2 relative">
+            <input type="text" id="user-input" 
+                class="w-full bg-slate-800 border border-slate-700 rounded-full px-5 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all placeholder-slate-500"
+                placeholder="Ask a question..." autocomplete="off">
+            <button type="submit" 
+                class="absolute right-2 top-1.5 bg-emerald-600 hover:bg-emerald-500 text-white p-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
+                    <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+                </svg>
+            </button>
+        </form>
+    </div>
+
+    <!-- Modals -->
+    <!-- Truth Modal -->
+    <div id="truth-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm hidden p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-slate-800 rounded-2xl max-w-md w-full p-6 border border-slate-700 shadow-2xl transform scale-95 transition-transform duration-300">
+            <h2 class="text-xl font-bold text-white mb-4">汤底 (The Truth)</h2>
+            <div id="truth-content" class="text-slate-300 mb-6 leading-relaxed"></div>
+            <button onclick="closeTruthModal()" class="w-full bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl transition">Close</button>
+        </div>
+    </div>
+
+    <!-- Rating Modal -->
+    <div id="rating-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm hidden p-4">
+        <div class="bg-slate-800 rounded-2xl max-w-sm w-full p-6 border border-slate-700 text-center">
+            <h2 class="text-xl font-bold text-white mb-2">Solved!</h2>
+            <p class="text-slate-400 mb-6">How was this soup?</p>
+            <div class="flex justify-center gap-2 mb-6">
+                <button onclick="submitRating(1)" class="w-10 h-10 rounded-full bg-slate-700 hover:bg-emerald-500 hover:text-white transition flex items-center justify-center">1</button>
+                <button onclick="submitRating(2)" class="w-10 h-10 rounded-full bg-slate-700 hover:bg-emerald-500 hover:text-white transition flex items-center justify-center">2</button>
+                <button onclick="submitRating(3)" class="w-10 h-10 rounded-full bg-slate-700 hover:bg-emerald-500 hover:text-white transition flex items-center justify-center">3</button>
+                <button onclick="submitRating(4)" class="w-10 h-10 rounded-full bg-slate-700 hover:bg-emerald-500 hover:text-white transition flex items-center justify-center">4</button>
+                <button onclick="submitRating(5)" class="w-10 h-10 rounded-full bg-slate-700 hover:bg-emerald-500 hover:text-white transition flex items-center justify-center">5</button>
+            </div>
+            <button onclick="window.location.href='/'" class="text-slate-500 hover:text-white text-sm">Back to Home</button>
+        </div>
+    </div>
+
+    <script>
+        const puzzleId = {{ puzzle_id }};
+        let sessionId = null;
+        let userId = localStorage.getItem('haiguitang_uid');
+
+        if (!userId) {
+            window.location.href = '/';
+        }
+
+        async function initGame() {
+            try {
+                const res = await fetch(`/api/puzzles/${puzzleId}?user_id=${userId}`);
+                if (!res.ok) throw new Error('Failed to load');
+                const data = await res.json();
+                
+                document.getElementById('puzzle-title').innerText = data.puzzle.title;
+                document.getElementById('puzzle-content').innerText = data.puzzle.content;
+                
+                sessionId = data.session.id;
+
+                // Render History
+                const msgs = document.getElementById('messages');
+                data.history.forEach(msg => appendMessage(msg.role, msg.content));
+                
+                scrollToBottom();
+
+                if (data.session.status === 'solved') {
+                    disableChat('This puzzle is solved.');
+                } else if (data.session.status === 'given_up') {
+                    disableChat('You gave up on this puzzle.');
+                }
+
+            } catch (e) {
+                console.error(e);
+                alert('Error loading game');
+            }
+        }
+
+        function appendMessage(role, content) {
+            const container = document.getElementById('messages');
+            const isUser = role === 'user';
+            
+            const div = document.createElement('div');
+            div.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
+            
+            const bubble = document.createElement('div');
+            bubble.className = `max-w-[85%] rounded-2xl px-4 py-3 ${
+                isUser 
+                ? 'bg-emerald-600 text-white rounded-br-none' 
+                : 'bg-slate-800 text-slate-200 border border-slate-700 rounded-bl-none'
+            }`;
+            
+            if (!isUser) {
+                // Parse simple markdown if needed, but for Yes/No it's simple. 
+                // We'll use marked for safety/nice formatting if AI gets chatty.
+                bubble.innerHTML = marked.parse(content);
+            } else {
+                bubble.innerText = content;
+            }
+            
+            div.appendChild(bubble);
+            container.appendChild(div);
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            const container = document.getElementById('chat-container');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function disableChat(msg) {
+            const input = document.getElementById('user-input');
+            input.disabled = true;
+            input.placeholder = msg;
+        }
+
+        document.getElementById('chat-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('user-input');
+            const msg = input.value.trim();
+            if (!msg) return;
+
+            appendMessage('user', msg);
+            input.value = '';
+            
+            // Show typing
+            document.getElementById('typing').classList.remove('hidden');
+            scrollToBottom();
+
+            try {
+                const res = await fetch('/api/game/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId, message: msg })
+                });
+                
+                if (!res.ok) throw new Error('API Error');
+                
+                const data = await res.json();
+                document.getElementById('typing').classList.add('hidden');
+                appendMessage(data.role, data.content);
+
+            } catch (err) {
+                document.getElementById('typing').classList.add('hidden');
+                alert('Failed to send message');
+            }
+        };
+
+        function markSolved() {
+            document.getElementById('rating-modal').classList.remove('hidden');
+        }
+
+        async function submitRating(rating) {
+            try {
+                const res = await fetch('/api/game/finish', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId, rating: rating })
+                });
+                if (res.ok) {
+                    window.location.href = '/';
+                } else {
+                    alert('Error saving rating');
+                }
+            } catch (e) {
+                alert('Network error');
+            }
+        }
+
+        async function confirmGiveUp() {
+            if (confirm('Are you sure you want to see the truth? This will end the game.')) {
+                const res = await fetch('/api/game/giveup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId, rating: 0 })
+                });
+                const data = await res.json();
+                
+                const modal = document.getElementById('truth-modal');
+                document.getElementById('truth-content').innerText = data.truth;
+                
+                modal.classList.remove('hidden');
+                // Trigger reflow
+                void modal.offsetWidth; 
+                modal.classList.remove('opacity-0');
+                
+                disableChat('Game Over');
+            }
+        }
+
+        function closeTruthModal() {
+            document.getElementById('truth-modal').classList.add('opacity-0');
+            setTimeout(() => {
+                document.getElementById('truth-modal').classList.add('hidden');
+            }, 300);
+        }
+        
+        // Manual trigger for rating (usually would be triggered by AI saying "Correct!")
+        // For now, let's say if the user wants to mark it solved? 
+        // Or relying on AI logic. In this simple version, we don't have an explicit "I solved it" button
+        // Maybe we should add one "I think I solved it" -> AI checks? 
+        // The prompt says "If user guesses... confirm it".
+        // The frontend doesn't know when to show Rating Modal unless AI response contains a flag.
+        // The backend didn't return a flag. 
+        // I'll add a heuristic: If AI response contains "Congrat" or "Correct" or "对", we show rating?
+        // Let's keep it simple: If AI says "Yes" to "Is it X?", it's just a yes.
+        // The user effectively solves it mentally. 
+        // Maybe add a "Mark as Solved" button? 
+        // Or better: The prompt instructs AI to congratulate.
+        // We can scan the AI response in frontend for keywords "Congratulations" or "恭喜".
+        
+        // Let's modify the appendMessage slightly to check for keywords in a real app, 
+        // but for this MVP, I'll add a hidden logic or just a manual "Finish" button?
+        // Let's add a "Finish" button next to Give Up? No, too cluttered.
+        
+        // Let's stick to: AI confirms -> User hits "Back" -> Status updates?
+        // Actually, the plan had "Rating Modal Appears on completion".
+        // I'll add a "Solved" button for the user to self-report if the AI confirms.
+        
+    </script>
+</body>
+</html>
