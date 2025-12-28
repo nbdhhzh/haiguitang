@@ -43,7 +43,7 @@ client = AsyncOpenAI(
     api_key=api_key,
 )
 
-MODEL_NAME = "google/gemini-2.5-flash-lite"
+MODEL_NAME = "google/gemini-3-flash-preview"
 
 # Mount Static & Templates
 app.mount("/static", StaticFiles(directory="server/static"), name="static")
