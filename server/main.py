@@ -32,12 +32,18 @@ app.add_middleware(
 )
 
 # OpenRouter Client
+api_key = os.getenv("OPENROUTER_API_KEY")
+if not api_key:
+    print("WARNING: OPENROUTER_API_KEY is not set in environment variables.")
+else:
+    print(f"OPENROUTER_API_KEY loaded: {api_key[:4]}...{api_key[-4:]}")
+
 client = AsyncOpenAI(
     base_url="https://openrouter.ai/api/v1",
-    api_key=os.getenv("OPENROUTER_API_KEY"),
+    api_key=api_key,
 )
 
-MODEL_NAME = "google/gemini-2.0-flash-exp"
+MODEL_NAME = "google/gemini-2.5-flash-lite"
 
 # Mount Static & Templates
 app.mount("/static", StaticFiles(directory="server/static"), name="static")
@@ -188,7 +194,6 @@ Rules:
         completion = await client.chat.completions.create(
             model=MODEL_NAME,
             messages=messages,
-            
         )
         ai_response = completion.choices[0].message.content
         
@@ -222,6 +227,9 @@ Rules:
     except Exception as e:
         # Log error
         print(f"LLM Error: {e}")
+        error_msg = str(e)
+        if "401" in error_msg:
+             return {"role": "ai", "content": "Configuration Error: The host cannot be reached (401 Unauthorized). Please check the server API Key."}
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/game/finish")
