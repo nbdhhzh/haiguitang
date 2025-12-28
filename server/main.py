@@ -185,7 +185,7 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
    - `[[UNSOLVED]]`：用户在试图推导核心汤底和关键因果，但未解决谜题，请向用户说明情况，但不可揭露汤底。
    - `[[ANSWER]]`：用户是在提问（是非题）。你的回答内容**必须**是“是”、“不是”、“没有关系”、“不重要”这四个词中的一个。
    - `[[HINT]]`：用户明确请求提示，你需要给出一个微小的引导。
-   5. **判定标准**：不要因为用户猜对了一点皮毛就判定 SOLVED，必须还原核心汤底。
+   5. **判定标准**：不要因为用户猜对了一点皮毛就判定 SOLVED，必须还原核心汤底的重要部分。
 6. 请保持简洁，用中文回答。
     """
     
@@ -235,8 +235,8 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
                 final_content = content_body
                 
         elif tag in ["[[HINT]]", "[[UNSOLVED]]"]:
-            # Length Check: Max 100 chars (approx)
-            if len(content_body) <= 100: # relaxed slightly to 100 for safety
+            # Length Check: Max 300 chars (approx)
+            if len(content_body) <= 300: # relaxed slightly to 100 for safety
                 is_legal = True
                 final_content = content_body
         
