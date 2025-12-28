@@ -246,7 +246,8 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
             if clean_body in ["是", "不是", "没有关系", "不重要"]:
                 is_legal = True
                 final_content = ai_response_raw
-
+        if not is_legal:
+            final_content = "主持人保持沉默。（回答不符合规则，可再次尝试）"
         # Save AI Response
         ai_interaction = Interaction(
             session_id=session.id, 
@@ -256,9 +257,6 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
         )
         db.add(ai_interaction)
         db.commit()
-        
-        if not is_legal:
-            return {"role": "ai", "content": "主持人保持沉默。（回答不符合规则）", "game_status": game_status}
 
         return {"role": "ai", "content": final_content, "game_status": game_status}
         
