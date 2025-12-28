@@ -56,6 +56,51 @@ python server/main.py
 
 访问浏览器：`http://127.0.0.1:8000`
 
+## 📦 服务器部署指南
+
+推荐使用 Nginx 作为反向代理服务器。
+
+### 1. 使用 PM2 运行后端
+
+```bash
+# 安装 PM2
+npm install -g pm2
+
+# 启动服务
+pm2 start ecosystem.config.js
+```
+
+### 2. 配置 Nginx
+
+编辑 Nginx 配置文件（通常位于 `/etc/nginx/sites-available/default` 或 `/etc/nginx/conf.d/haiguitang.conf`）：
+
+```nginx
+server {
+    listen 80;
+    server_name your_domain.com;  # 替换为你的域名或 IP
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # 可选：静态文件缓存
+    location /static {
+        alias /path/to/haiguitang/server/static; # 替换为实际路径
+        expires 30d;
+    }
+}
+```
+
+重启 Nginx：
+```bash
+sudo nginx -t
+sudo systemctl restart nginx
+```
+
 ## 📂 项目结构
 
 ```
