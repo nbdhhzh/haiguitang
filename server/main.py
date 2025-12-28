@@ -92,11 +92,23 @@ def get_puzzles(user_id: str, db: Session = Depends(get_db)):
         status = "new"
         if session:
             status = session.status
+        
+        # Create a preview of the content (first sentence or 30 chars)
+        preview = p.content
+        if preview:
+            # Try to cut at the first punctuation
+            import re
+            match = re.search(r'[。！？.!?]', preview)
+            if match:
+                preview = preview[:match.end()]
+            else:
+                preview = preview[:30] + "..."
             
         result.append({
             "id": p.id,
             "title": p.title,
-            "status": status
+            "status": status,
+            "preview": preview
         })
     return result
 

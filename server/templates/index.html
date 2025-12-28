@@ -1,31 +1,65 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>海龟汤 | Turtle Soup</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Noto Sans SC', sans-serif; }
-        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .glass:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.2); }
+        body { font-family: 'Inter', 'Noto Sans SC', sans-serif; }
+        .glass-card { 
+            background: rgba(24, 24, 27, 0.6); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255, 255, 255, 0.05); 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .glass-card:hover { 
+            background: rgba(39, 39, 42, 0.8); 
+            border-color: rgba(255, 255, 255, 0.1); 
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
     </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        zinc: { 950: '#09090b', 900: '#18181b', 850: '#202023' }
+                    }
+                }
+            }
+        }
+    </script>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen">
-    <div class="container mx-auto px-4 py-8 max-w-4xl">
-        <header class="mb-12 text-center">
-            <h1 class="text-4xl font-bold tracking-tight mb-2 bg-gradient-to-r from-emerald-400 to-cyan-500 bg-clip-text text-transparent">海龟汤</h1>
-            <p class="text-slate-400">Lateral Thinking Puzzles</p>
-            <div id="user-info" class="mt-4 text-sm text-slate-500 hidden">
-                Player ID: <span id="display-uid" class="font-mono"></span>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen selection:bg-emerald-500/30 selection:text-emerald-200">
+    
+    <div class="max-w-5xl mx-auto px-6 py-12 md:py-20">
+        <!-- Header -->
+        <header class="mb-16 text-center space-y-4">
+            <h1 class="text-4xl md:text-5xl font-bold tracking-tight bg-gradient-to-br from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent">
+                海龟汤
+            </h1>
+            <p class="text-zinc-500 text-sm tracking-[0.2em] uppercase font-medium">Lateral Thinking Puzzles</p>
+            
+            <div id="user-info" class="mt-8 opacity-0 transition-opacity duration-700">
+                <div class="inline-flex items-center px-3 py-1 rounded-full bg-zinc-900/50 border border-zinc-800 text-xs text-zinc-500 font-mono">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
+                    ID: <span id="display-uid" class="ml-1"></span>
+                </div>
             </div>
         </header>
 
-        <div id="loading" class="text-center text-slate-500">Loading Puzzles...</div>
+        <!-- Loading State -->
+        <div id="loading" class="flex justify-center items-center py-20">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-white/20"></div>
+        </div>
 
-        <div id="puzzle-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6 hidden">
-            <!-- Puzzles will be injected here -->
+        <!-- Grid -->
+        <div id="puzzle-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-0 transition-opacity duration-500">
+            <!-- Puzzles injected here -->
         </div>
     </div>
 
@@ -33,7 +67,6 @@
         // --- Auth Logic ---
         async function initAuth() {
             let uid = localStorage.getItem('haiguitang_uid');
-            // If we want a nickname, we could ask for it, but for now we just auto-gen if missing
             const res = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -41,50 +74,67 @@
             });
             const data = await res.json();
             localStorage.setItem('haiguitang_uid', data.id);
-            document.getElementById('display-uid').innerText = data.id.substring(0, 8) + '...';
-            document.getElementById('user-info').classList.remove('hidden');
+            document.getElementById('display-uid').innerText = data.id.substring(0, 8);
+            document.getElementById('user-info').classList.remove('opacity-0');
             return data.id;
         }
 
-        // --- Main Logic ---
+        // --- Render Logic ---
         async function loadPuzzles(uid) {
-            const res = await fetch(`/api/puzzles?user_id=${uid}`);
-            const puzzles = await res.json();
-            
-            const grid = document.getElementById('puzzle-grid');
-            document.getElementById('loading').classList.add('hidden');
-            grid.classList.remove('hidden');
-            grid.innerHTML = '';
-
-            puzzles.forEach(p => {
-                const statusColors = {
-                    'new': 'border-slate-700 text-slate-400',
-                    'in_progress': 'border-blue-500/50 text-blue-400',
-                    'solved': 'border-emerald-500/50 text-emerald-400',
-                    'given_up': 'border-red-500/50 text-red-400'
-                };
-                const statusLabels = {
-                    'new': '未开始',
-                    'in_progress': '进行中',
-                    'solved': '已完成',
-                    'given_up': '已放弃'
-                };
-
-                const card = document.createElement('a');
-                card.href = `/play/${p.id}`;
-                card.className = `glass block p-6 rounded-xl transition-all duration-300 transform hover:-translate-y-1 ${statusColors[p.status].split(' ')[0]}`;
+            try {
+                const res = await fetch(`/api/puzzles?user_id=${uid}`);
+                const puzzles = await res.json();
                 
-                card.innerHTML = `
-                    <div class="flex justify-between items-start mb-4">
-                        <span class="text-xs font-mono opacity-50">#${p.id}</span>
-                        <span class="text-xs px-2 py-1 rounded-full bg-slate-800 ${statusColors[p.status].split(' ')[1]} border border-slate-700">
-                            ${statusLabels[p.status]}
-                        </span>
-                    </div>
-                    <h3 class="text-xl font-medium text-slate-100">${p.title}</h3>
-                `;
-                grid.appendChild(card);
-            });
+                const grid = document.getElementById('puzzle-grid');
+                const loading = document.getElementById('loading');
+                
+                loading.remove();
+                grid.classList.remove('opacity-0');
+                
+                puzzles.forEach(p => {
+                    const card = document.createElement('a');
+                    card.href = `/play/${p.id}`;
+                    card.className = `glass-card group relative block p-6 rounded-2xl transition-all duration-300 overflow-hidden`;
+
+                    // Status Dot
+                    let statusColor = 'bg-zinc-700';
+                    let statusText = 'New';
+                    if (p.status === 'solved') { statusColor = 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]'; statusText = 'Solved'; }
+                    if (p.status === 'given_up') { statusColor = 'bg-zinc-600'; statusText = 'Revealed'; }
+                    if (p.status === 'in_progress') { statusColor = 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]'; statusText = 'Playing'; }
+
+                    card.innerHTML = `
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-xs font-medium text-zinc-500 group-hover:text-zinc-400 transition-colors">
+                                Puzzle
+                            </span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] uppercase tracking-wider font-semibold text-zinc-600 group-hover:text-zinc-500 transition-colors">${statusText}</span>
+                                <span class="w-1.5 h-1.5 rounded-full ${statusColor}"></span>
+                            </div>
+                        </div>
+                        
+                        <h3 class="text-lg font-medium text-zinc-200 group-hover:text-white transition-colors mb-2 leading-tight">
+                            ${p.title}
+                        </h3>
+                        
+                        <p class="text-sm text-zinc-500 group-hover:text-zinc-400 leading-relaxed line-clamp-2 transition-colors">
+                            ${p.preview || 'Loading...'}
+                        </p>
+
+                        <!-- Hover Arrow -->
+                        <div class="absolute bottom-6 right-6 opacity-0 transform translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
+                            <svg class="w-5 h-5 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                            </svg>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+            } catch (err) {
+                console.error(err);
+                document.getElementById('loading').innerHTML = `<p class="text-red-500">Failed to load puzzles.</p>`;
+            }
         }
 
         (async () => {
