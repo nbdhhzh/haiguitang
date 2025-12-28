@@ -235,8 +235,8 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
                 final_content = content_body
                 
         elif tag in ["[[HINT]]", "[[UNSOLVED]]"]:
-            # Length Check: Max 30 chars (approx)
-            if len(content_body) <= 50: # relaxed slightly to 50 for safety
+            # Length Check: Max 100 chars (approx)
+            if len(content_body) <= 100: # relaxed slightly to 100 for safety
                 is_legal = True
                 final_content = content_body
         
