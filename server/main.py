@@ -60,7 +60,8 @@ class ChatRequest(BaseModel):
 
 class RatingRequest(BaseModel):
     session_id: int
-    rating: int
+    rating_fun: Optional[int] = 0
+    rating_logic: Optional[int] = 0
 
 # --- API Endpoints ---
 
@@ -149,7 +150,8 @@ def get_puzzle_detail(puzzle_id: int, user_id: str, db: Session = Depends(get_db
         "session": {
             "id": session.id,
             "status": session.status,
-            "rating": session.rating
+            "rating_fun": session.rating_fun,
+            "rating_logic": session.rating_logic
         },
         "history": [{"role": h.role, "content": h.content} for h in history]
     }
@@ -169,17 +171,17 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
     
     # Build Prompt
     system_prompt = f"""
-You are the host of a Lateral Thinking Puzzle (Turtle Soup) game.
-Puzzle: {puzzle.content}
-Truth: {puzzle.truth}
+你是一个海龟汤（情境推理游戏）的主持人。
+汤面（题目）: {puzzle.content}
+汤底（真相）: {puzzle.truth}
 
-Your goal is to answer the user's questions to help them solve the puzzle.
-Rules:
-1. Only answer with "Yes", "No", or "Irrelevant".
-2. If the user's question assumes something wrong, you can say "No".
-3. If the user asks for a hint, give a subtle clue without revealing the key truth.
-4. **CRITICAL**: If the user's message clearly indicates they have figured out the core truth (the "Soup Bottom"), start your response with the exact token `[[SOLVED]]`. Then, congratulate them and briefly summarize why they are correct.
-5. Be concise.
+你的目标是回答用户的提问，帮助他们还原真相。
+规则：
+1. 只能回答“是”、“不是”或“没有关系”。
+2. 如果用户的问题建立了错误的假设，你可以回答“不重要”或“不是”。
+3. 如果用户请求提示，可以给出一点微小的线索，但绝不能直接泄露核心真相。
+4. **关键**：如果用户的消息清楚地表明他们已经推导出了核心真相（汤底），请以确切的标记 `[[SOLVED]]` 开头。然后祝贺他们，并简要总结为什么他们是正确的。
+5. 请保持简洁，用中文回答。
     """
     
     # Fetch recent history (limit context window if needed, here we take all)
@@ -202,18 +204,19 @@ Rules:
         if "[[SOLVED]]" in ai_response:
             game_status = "solved"
             ai_response = ai_response.replace("[[SOLVED]]", "").strip()
-            # Update DB
-            session.status = "solved"
+            # Update DB (only if not already given up)
+            if session.status != "given_up":
+                session.status = "solved"
             
         # --- Safety/Legality Check ---
         is_legal = True
         
         # 1. Length Check
-        if len(ai_response) > 800: # Increased limit to allow for congratulations/hints
+        if len(ai_response) > 800: 
              is_legal = False 
              
         # 2. Keyword Check (Simple safeguard)
-        forbidden_terms = ["The truth is", "Answer:"]
+        forbidden_terms = ["真相是", "答案是", "汤底是"]
         # Allow specific terms if solved
         if game_status != "solved" and any(term in ai_response for term in forbidden_terms):
              is_legal = False
@@ -229,7 +232,7 @@ Rules:
         db.commit()
         
         if not is_legal:
-            return {"role": "ai", "content": "The host remains silent. (Response filtered for safety)", "game_status": game_status}
+            return {"role": "ai", "content": "主持人保持沉默。（回答因安全原因被过滤）", "game_status": game_status}
 
         return {"role": "ai", "content": ai_response, "game_status": game_status}
         
@@ -238,7 +241,7 @@ Rules:
         print(f"LLM Error: {e}")
         error_msg = str(e)
         if "401" in error_msg:
-             return {"role": "ai", "content": "Configuration Error: The host cannot be reached (401 Unauthorized). Please check the server API Key."}
+             return {"role": "ai", "content": "配置错误：无法连接到主持人 (401 Unauthorized)。请检查服务器 API Key。"}
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/game/finish")
@@ -247,8 +250,21 @@ def finish_game(req: RatingRequest, db: Session = Depends(get_db)):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    session.status = "solved"
-    session.rating = req.rating
+    # If not already finished, mark as solved (assuming this is called when solved or rating after give up)
+    # Actually, logic:
+    # 1. If solved naturally, status is already 'solved'.
+    # 2. If give up, status is 'given_up'.
+    # 3. If calling finish, it's mostly to save rating.
+    
+    # We respect the 'given_up' status if it exists.
+    if session.status == "in_progress":
+        session.status = "solved"
+        
+    if req.rating_fun:
+        session.rating_fun = req.rating_fun
+    if req.rating_logic:
+        session.rating_logic = req.rating_logic
+        
     db.commit()
     return {"status": "success"}
 

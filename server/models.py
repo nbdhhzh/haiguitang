@@ -31,7 +31,9 @@ class GameSession(Base):
     user_id = Column(String, ForeignKey("users.id"))
     puzzle_id = Column(Integer, ForeignKey("puzzles.id"))
     status = Column(String, default="in_progress") # in_progress, solved, given_up
-    rating = Column(Integer, nullable=True)
+    # rating column removed
+    rating_fun = Column(Integer, nullable=True)
+    rating_logic = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="game_sessions")

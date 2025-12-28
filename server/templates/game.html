@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Playing - Turtle Soup</title>
+    <title>游戏进行中 - 海龟汤</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -24,6 +24,11 @@
         /* Markdown Styles for AI */
         .prose p { margin-bottom: 0.5em; }
         .prose p:last-child { margin-bottom: 0; }
+
+        /* Rating Stars */
+        .star-btn svg { transition: all 0.2s; }
+        .star-btn.active svg { fill: currentColor; color: #fbbf24; } /* amber-400 */
+        .star-btn:hover svg { transform: scale(1.1); }
     </style>
     <script>
         tailwind.config = {
@@ -50,21 +55,23 @@
             </div>
         </a>
         
-        <h1 id="puzzle-title" class="text-sm font-medium tracking-wide text-zinc-200 truncate px-4 opacity-0 transition-opacity duration-500">Loading...</h1>
+        <h1 id="puzzle-title" class="text-sm font-medium tracking-wide text-zinc-200 truncate px-4 opacity-0 transition-opacity duration-500">加载中...</h1>
         
         <div class="flex gap-2">
             <!-- Hint Button -->
-            <button onclick="requestHint()" class="group relative flex items-center justify-center w-8 h-8 rounded-full border border-yellow-500/30 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 transition-all" title="Hint">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+            <button onclick="requestHint()" class="group relative flex items-center justify-center px-3 h-8 rounded-full border border-yellow-500/30 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 transition-all" title="提示">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-1.5">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.001 6.001 0 00-5.304-7.65 6 6 0 00-5.304 7.65 12 18v5.25m12-5.25a6.001 6.001 0 015.304-7.65 6 6 0 015.304 7.65 12 18v5.25M12 18a2.25 2.25 0 00-2.25 2.25c0 1.152.26 2.226.714 3.195a2.25 2.25 0 004.14 0c.453-.969.714-2.043.714-3.195A2.25 2.25 0 0012 18z" />
                 </svg>
+                <span class="text-xs font-medium">提示</span>
             </button>
             
             <!-- Give Up Button -->
-            <button onclick="confirmGiveUp()" class="group relative flex items-center justify-center w-8 h-8 rounded-full border border-zinc-700 bg-zinc-800/50 hover:bg-red-900/20 hover:border-red-800/50 hover:text-red-400 text-zinc-400 transition-all" title="Give Up / Reveal">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+            <button onclick="confirmGiveUp()" class="group relative flex items-center justify-center px-3 h-8 rounded-full border border-zinc-700 bg-zinc-800/50 hover:bg-red-900/20 hover:border-red-800/50 hover:text-red-400 text-zinc-400 transition-all" title="放弃 / 查看真相">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-1.5">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M3 3v1.5M3 21v-6m0 0l2.77-.693a9 9 0 016.208.682l.108.054a9 9 0 006.086.71l3.114-.732a48.524 48.524 0 01-.005-10.499l-3.11.732a9 9 0 01-6.085-.711l-.108-.054a9 9 0 00-6.208-.682L3 4.5M3 15V4.5" />
                 </svg>
+                <span class="text-xs font-medium">放弃</span>
             </button>
         </div>
     </header>
@@ -75,7 +82,7 @@
         <div id="puzzle-card" class="glass-card p-6 md:p-8 rounded-2xl max-w-2xl mx-auto shadow-sm opacity-0 transition-opacity duration-700">
             <div class="flex items-center gap-2 mb-4">
                 <span class="w-1 h-4 bg-emerald-500 rounded-full"></span>
-                <span class="text-xs font-bold text-zinc-500 uppercase tracking-widest">Puzzle</span>
+                <span class="text-xs font-bold text-zinc-500 uppercase tracking-widest">汤面</span>
             </div>
             <div id="puzzle-content" class="text-lg md:text-xl font-light leading-relaxed text-zinc-200"></div>
         </div>
@@ -97,7 +104,7 @@
             <div class="absolute inset-0 bg-zinc-800/50 rounded-full blur-sm group-hover:bg-zinc-700/50 transition-colors"></div>
             <input type="text" id="user-input" 
                 class="relative w-full bg-zinc-900/90 border border-zinc-800 text-zinc-200 rounded-full px-6 py-4 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all placeholder-zinc-600 shadow-xl"
-                placeholder="Ask a Yes/No question..." autocomplete="off">
+                placeholder="输入你的提问（是非题）..." autocomplete="off">
             
             <button type="submit" 
                 class="absolute right-2 top-2 bottom-2 aspect-square bg-zinc-100 hover:bg-white text-black rounded-full transition-all transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:scale-100 flex items-center justify-center">
@@ -118,14 +125,14 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.001 6.001 0 00-5.304-7.65 6 6 0 00-5.304 7.65 12 18v5.25m12-5.25a6.001 6.001 0 015.304-7.65 6 6 0 015.304 7.65 12 18v5.25M12 18a2.25 2.25 0 00-2.25 2.25c0 1.152.26 2.226.714 3.195a2.25 2.25 0 004.14 0c.453-.969.714-2.043.714-3.195A2.25 2.25 0 0012 18z" />
                     </svg>
                 </div>
-                <h2 class="text-2xl font-bold text-white mb-2">The Truth</h2>
-                <p class="text-zinc-500 text-sm">Everything is revealed.</p>
+                <h2 class="text-2xl font-bold text-white mb-2">汤底（真相）</h2>
+                <p class="text-zinc-500 text-sm">一切真相大白。</p>
             </div>
             
             <div id="truth-content" class="text-zinc-300 mb-8 leading-relaxed text-sm bg-zinc-950/50 p-6 rounded-2xl border border-zinc-800/50"></div>
             
-            <button onclick="window.location.href='/'" class="w-full bg-white hover:bg-zinc-200 text-black font-medium py-3.5 rounded-xl transition shadow-lg shadow-white/5">
-                Back to Home
+            <button onclick="openRatingModalFromTruth()" class="w-full bg-white hover:bg-zinc-200 text-black font-medium py-3.5 rounded-xl transition shadow-lg shadow-white/5">
+                去打分
             </button>
         </div>
     </div>
@@ -139,19 +146,33 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                     </svg>
                 </div>
-                <h2 class="text-2xl font-bold text-white mb-2">Solved!</h2>
-                <p class="text-zinc-500">Rate the quality of this soup</p>
+                <h2 class="text-2xl font-bold text-white mb-2">已还原！</h2>
+                <p class="text-zinc-500">请评价这碗汤</p>
             </div>
             
-            <div class="flex justify-center gap-2 mb-8">
-                <button onclick="submitRating(1)" class="w-10 h-10 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition flex items-center justify-center font-medium">1</button>
-                <button onclick="submitRating(2)" class="w-10 h-10 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition flex items-center justify-center font-medium">2</button>
-                <button onclick="submitRating(3)" class="w-10 h-10 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition flex items-center justify-center font-medium">3</button>
-                <button onclick="submitRating(4)" class="w-10 h-10 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition flex items-center justify-center font-medium">4</button>
-                <button onclick="submitRating(5)" class="w-10 h-10 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition flex items-center justify-center font-medium">5</button>
+            <!-- Rating Sections -->
+            <div class="space-y-6 mb-8">
+                <!-- Fun Rating -->
+                <div>
+                    <label class="block text-zinc-400 text-xs uppercase tracking-widest mb-3">趣味性</label>
+                    <div class="flex justify-center gap-2" id="fun-stars">
+                        <!-- Generated by JS -->
+                    </div>
+                </div>
+                
+                <!-- Logic Rating -->
+                <div>
+                    <label class="block text-zinc-400 text-xs uppercase tracking-widest mb-3">合理性</label>
+                    <div class="flex justify-center gap-2" id="logic-stars">
+                        <!-- Generated by JS -->
+                    </div>
+                </div>
             </div>
             
-            <button onclick="window.location.href='/'" class="text-zinc-500 hover:text-white text-sm transition-colors">Skip Rating</button>
+            <div class="flex flex-col gap-3">
+                <button onclick="submitRating()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-medium py-3 rounded-xl transition">提交评价</button>
+                <button onclick="window.location.href='/'" class="text-zinc-500 hover:text-white text-sm transition-colors py-2">跳过评价</button>
+            </div>
         </div>
     </div>
 
@@ -159,9 +180,12 @@
         const puzzleId = {{ puzzle_id }};
         let sessionId = null;
         let userId = localStorage.getItem('haiguitang_uid');
+        
+        // Rating State
+        let currentFunRating = 0;
+        let currentLogicRating = 0;
 
         if (!userId) {
-            // If no user, redirect to home to init auth
             window.location.href = '/';
         }
 
@@ -188,15 +212,15 @@
                 scrollToBottom();
 
                 if (data.session.status === 'solved') {
-                    disableChat('This puzzle is solved.');
+                    disableChat('本题已解开。');
                 } else if (data.session.status === 'given_up') {
-                    disableChat('You gave up on this puzzle.');
+                    disableChat('你已放弃本题。');
                 }
 
             } catch (e) {
                 console.error(e);
                 document.getElementById('chat-container').innerHTML = 
-                    `<div class="flex items-center justify-center h-full text-red-500">Error loading game. Please try again.</div>`;
+                    `<div class="flex items-center justify-center h-full text-red-500">加载游戏失败，请重试。</div>`;
             }
         }
 
@@ -287,26 +311,65 @@
 
         async function requestHint() {
              const input = document.getElementById('user-input');
-             input.value = "请给我一点提示 (Hint please)";
+             input.value = "请给我一点提示";
              // Dispatch submit event
              document.getElementById('chat-form').dispatchEvent(new Event('submit', { cancelable: true }));
         }
 
         // --- Logic for Modals ---
-
-        function markSolved() {
-            const modal = document.getElementById('rating-modal');
-            modal.classList.remove('hidden');
-            void modal.offsetWidth; 
-            modal.classList.remove('opacity-0');
+        
+        // Star Rendering Logic
+        function renderStars(containerId, type) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            for (let i = 1; i <= 5; i++) {
+                const btn = document.createElement('button');
+                btn.className = 'star-btn w-8 h-8 text-zinc-600 transition-colors focus:outline-none';
+                btn.onclick = () => setRating(type, i);
+                btn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-full h-full">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                    </svg>
+                `;
+                container.appendChild(btn);
+            }
         }
 
-        async function submitRating(rating) {
+        function setRating(type, val) {
+            if (type === 'fun') currentFunRating = val;
+            if (type === 'logic') currentLogicRating = val;
+            
+            // Update UI
+            updateStarUI('fun-stars', currentFunRating);
+            updateStarUI('logic-stars', currentLogicRating);
+        }
+
+        function updateStarUI(containerId, rating) {
+            const container = document.getElementById(containerId);
+            Array.from(container.children).forEach((btn, idx) => {
+                if (idx < rating) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+        }
+
+        // Initialize Stars
+        renderStars('fun-stars', 'fun');
+        renderStars('logic-stars', 'logic');
+
+        async function submitRating() {
+            if (currentFunRating === 0 || currentLogicRating === 0) {
+                alert('请完成所有评分');
+                return;
+            }
             try {
                 const res = await fetch('/api/game/finish', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ session_id: sessionId, rating: rating })
+                    body: JSON.stringify({ 
+                        session_id: sessionId, 
+                        rating_fun: currentFunRating,
+                        rating_logic: currentLogicRating
+                    })
                 });
                 if (res.ok) {
                     window.location.href = '/';
@@ -317,11 +380,11 @@
         }
 
         async function confirmGiveUp() {
-            if (confirm('Are you sure you want to see the truth?')) {
+            if (confirm('确定要放弃并查看真相吗？')) {
                 const res = await fetch('/api/game/giveup', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ session_id: sessionId, rating: 0 })
+                    body: JSON.stringify({ session_id: sessionId })
                 });
                 const data = await res.json();
                 
@@ -332,8 +395,20 @@
                 void modal.offsetWidth; 
                 modal.classList.remove('opacity-0');
                 
-                disableChat('Game Over');
+                disableChat('游戏结束');
             }
+        }
+        
+        function openRatingModalFromTruth() {
+            // Close truth modal
+            const truthModal = document.getElementById('truth-modal');
+            truthModal.classList.add('opacity-0', 'hidden'); // Simple hide, ignoring transition for speed
+            
+            // Open rating modal
+            const ratingModal = document.getElementById('rating-modal');
+            ratingModal.classList.remove('hidden');
+            void ratingModal.offsetWidth;
+            ratingModal.classList.remove('opacity-0');
         }
         
         // Start
