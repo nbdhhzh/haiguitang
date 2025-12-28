@@ -180,11 +180,13 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
 1. 只能回答“是”、“不是”或“没有关系”。
 2. 如果用户的问题建立了错误的假设，你可以回答“不重要”或“不是”。
 3. 如果用户请求提示，可以给出一点微小的线索，但绝不能直接泄露核心真相。
-4. **关键判定标准**：只有当用户推导出了核心真相（汤底）的所有关键要素（包括但不限于：关键人物的动机、具体手法、事件的因果逻辑等）时，才可以使用 `[[SOLVED]]` 标记。
-   - 如果用户只猜对了一部分，或者只是接近真相但缺乏关键细节，请继续回答“是”或“不是”，引导他们补充完整。
-   - 不要在用户仅猜出大概结果而未解释原因时判定胜利。
-   - 判定胜利时，请以确切的标记 `[[SOLVED]]` 开头，然后祝贺他们，并简要总结为什么他们是正确的。
-5. 请保持简洁，用中文回答。
+4. **输出格式**：每次回答必须以以下四个标记之一开头：
+   - `[[SOLVED]]`：用户完全推导出了核心汤底和关键因果。请祝贺并简要总结。
+   - `[[UNSOLVED]]`：用户在试图推导核心汤底和关键因果，但未解决谜题，请向用户说明情况，但不可揭露汤底。
+   - `[[ANSWER]]`：用户是在提问（是非题）。你的回答内容**必须**是“是”、“不是”、“没有关系”、“不重要”这四个词中的一个。
+   - `[[HINT]]`：用户明确请求提示，你需要给出一个微小的引导。
+   5. **判定标准**：不要因为用户猜对了一点皮毛就判定 SOLVED，必须还原核心汤底。
+6. 请保持简洁，用中文回答。
     """
     
     # Fetch recent history (limit context window if needed, here we take all)
@@ -193,6 +195,7 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
     for h in history_objs:
         # Convert internal role to API role
         role = "assistant" if h.role == "ai" else "user"
+        # Filter out system generated truth messages from history context if any (though usually fine)
         messages.append({"role": role, "content": h.content})
         
     try:
@@ -200,44 +203,64 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
             model=MODEL_NAME,
             messages=messages,
         )
-        ai_response = completion.choices[0].message.content
+        ai_response_raw = completion.choices[0].message.content.strip()
         
-        # --- Solved Check ---
+        # --- Check Logic ---
         game_status = "in_progress"
-        if "[[SOLVED]]" in ai_response:
+        is_legal = False
+        final_content = ai_response_raw
+        
+        # Parse Tag
+        tag = None
+        content_body = ai_response_raw
+        for t in ["[[SOLVED]]", "[[ANSWER]]", "[[HINT]]", "[[UNSOLVED]]"]:
+            if ai_response_raw.startswith(t):
+                tag = t
+                content_body = ai_response_raw.replace(t, "").strip()
+                break
+        
+        if tag == "[[SOLVED]]":
+            is_legal = True
             game_status = "solved"
-            ai_response = ai_response.replace("[[SOLVED]]", "").strip()
-            # Update DB (only if not already given up)
+            final_content = content_body
             if session.status != "given_up":
                 session.status = "solved"
+            final_content += f"\n\n**【真相】**\n{puzzle.truth}"
             
-        # --- Safety/Legality Check ---
-        is_legal = True
+        elif tag == "[[ANSWER]]":
+            # Strict Check: Must be one of the 4 keywords
+            clean_body = content_body.replace("。", "").replace("！", "").strip()
+            if clean_body in ["是", "不是", "没有关系", "不重要"]:
+                is_legal = True
+                final_content = content_body
+                
+        elif tag in ["[[HINT]]", "[[UNSOLVED]]"]:
+            # Length Check: Max 30 chars (approx)
+            if len(content_body) <= 50: # relaxed slightly to 50 for safety
+                is_legal = True
+                final_content = content_body
         
-        # 1. Length Check
-        if len(ai_response) > 800: 
-             is_legal = False 
-             
-        # 2. Keyword Check (Simple safeguard)
-        forbidden_terms = ["真相是", "答案是", "汤底是"]
-        # Allow specific terms if solved
-        if game_status != "solved" and any(term in ai_response for term in forbidden_terms):
-             is_legal = False
-             
+        else:
+            # Fallback: strict check if no tag
+            clean_body = ai_response_raw.replace("。", "").replace("！", "").strip()
+            if clean_body in ["是", "不是", "没有关系", "不重要"]:
+                is_legal = True
+                final_content = ai_response_raw
+
         # Save AI Response
         ai_interaction = Interaction(
             session_id=session.id, 
             role="ai", 
-            content=ai_response,
+            content=final_content,
             is_legal=is_legal
         )
         db.add(ai_interaction)
         db.commit()
         
         if not is_legal:
-            return {"role": "ai", "content": "主持人保持沉默。（回答因安全原因被过滤）", "game_status": game_status}
+            return {"role": "ai", "content": "主持人保持沉默。（回答不符合规则）", "game_status": game_status}
 
-        return {"role": "ai", "content": ai_response, "game_status": game_status}
+        return {"role": "ai", "content": final_content, "game_status": game_status}
         
     except Exception as e:
         # Log error
@@ -253,13 +276,6 @@ def finish_game(req: RatingRequest, db: Session = Depends(get_db)):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    # If not already finished, mark as solved (assuming this is called when solved or rating after give up)
-    # Actually, logic:
-    # 1. If solved naturally, status is already 'solved'.
-    # 2. If give up, status is 'given_up'.
-    # 3. If calling finish, it's mostly to save rating.
-    
-    # We respect the 'given_up' status if it exists.
     if session.status == "in_progress":
         session.status = "solved"
         
@@ -278,6 +294,16 @@ def give_up(req: RatingRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Session not found")
     
     session.status = "given_up"
+    
+    # Save Truth to Chat History
+    truth_content = f"**【真相】**\n{session.puzzle.truth}"
+    system_interaction = Interaction(
+        session_id=session.id,
+        role="ai", # Display as AI message
+        content=truth_content,
+        is_legal=True
+    )
+    db.add(system_interaction)
     db.commit()
     
     return {"truth": session.puzzle.truth}
