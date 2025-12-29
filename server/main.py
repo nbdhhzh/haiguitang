@@ -180,11 +180,11 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
 1. 只能回答“是”、“不是”或“没有关系”。
 2. 如果用户的问题建立了错误的假设，你可以回答“不重要”或“不是”。
 3. 如果用户请求提示，可以给出一点微小的线索，但绝不能直接泄露核心真相。
-4. **输出格式**：每次回答必须以以下四个标记之一开头：
-   - `[[SOLVED]]`：用户完全推导出了核心汤底和关键因果。请祝贺并简要总结。
-   - `[[UNSOLVED]]`：用户在试图推导核心汤底和关键因果，但未解决谜题，请向用户说明情况，但不可揭露汤底。
-   - `[[ANSWER]]`：用户是在提问（是非题）。你的回答内容**必须**是“是”、“不是”、“没有关系”、“不重要”这四个词中的一个。
-   - `[[HINT]]`：用户明确请求提示，你需要基于汤面和已有对话，给出一个关于汤底的微小的引导。
+4. **输出格式**：每次回答必须为以下四种格式之一：
+   - 用户完全推导出了核心汤底和关键因果：祝贺用户，然后以`[[SOLVED]]`结尾。
+   - 用户在试图推导核心汤底和关键因果，但未解决谜题：请向用户说明情况，但不可揭露汤底。
+   - 用户是在提问（是非题）：你的回答内容**必须**是“是”、“不是”、“没有关系”、“不重要”这四个词中的一个。
+   - 用户明确请求提示：你需要基于汤面和已有对话，给出一个关于汤底的微小的引导。
    5. **判定标准**：不要因为用户猜对了一点皮毛就判定 SOLVED，必须还原核心汤底的重要部分。
 6. 请保持简洁，用中文回答。
     """
@@ -210,45 +210,14 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
         is_legal = False
         final_content = ai_response_raw
         
-        # Parse Tag
-        tag = None
-        content_body = ai_response_raw
-        for t in ["[[SOLVED]]", "[[ANSWER]]", "[[HINT]]", "[[UNSOLVED]]"]:
-            if ai_response_raw.startswith(t):
-                tag = t
-                content_body = ai_response_raw.replace(t, "").strip()
-                break
-        
-        if tag == "[[SOLVED]]":
+        if "[[SOLVED]]" in ai_response_raw:
             is_legal = True
             game_status = "solved"
-            final_content = content_body
+            final_content = content_body.replace([[SOLVED]], "").strip()
             if session.status != "given_up":
                 session.status = "solved"
             final_content += f"\n\n**【真相】**\n{puzzle.truth}"
             
-        elif tag == "[[ANSWER]]":
-            # Strict Check: Must be one of the 4 keywords
-            clean_body = content_body.replace("。", "").replace("！", "").strip()
-            if clean_body in ["是", "不是", "没有关系", "不重要"]:
-                is_legal = True
-                final_content = content_body
-                
-        elif tag in ["[[HINT]]", "[[UNSOLVED]]"]:
-            # Length Check: Max 300 chars (approx)
-            if len(content_body) <= 300: # relaxed slightly to 100 for safety
-                is_legal = True
-                final_content = content_body
-        
-        else:
-            # Fallback: strict check if no tag
-            clean_body = ai_response_raw.replace("。", "").replace("！", "").strip()
-            if clean_body in ["是", "不是", "没有关系", "不重要"]:
-                is_legal = True
-                final_content = ai_response_raw
-        if not is_legal:
-            final_content = "主持人保持沉默。（回答不符合规则，可再次尝试）"
-        # Save AI Response
         ai_interaction = Interaction(
             session_id=session.id, 
             role="ai", 
