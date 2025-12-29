@@ -213,7 +213,7 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
         if "[[SOLVED]]" in ai_response_raw:
             is_legal = True
             game_status = "solved"
-            final_content = content_body.replace([[SOLVED]], "").strip()
+            final_content = ai_response_raw.replace([[SOLVED]], "").strip()
             if session.status != "given_up":
                 session.status = "solved"
             final_content += f"\n\n**【真相】**\n{puzzle.truth}"
