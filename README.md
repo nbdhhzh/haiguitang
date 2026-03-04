@@ -169,7 +169,34 @@ sudo systemctl restart haiguitang
 sudo systemctl restart nginx
 ```
 
-### 8) （可选）使用 PM2
+### 8) 备份与回滚（建议）
+
+升级前建议先做 SQLite 文件备份：
+
+```bash
+cd /opt/haiguitang
+cp haiguitang.db "haiguitang.db.bak.$(date +%F-%H%M%S)"
+```
+
+若新版本异常，可快速回滚：
+
+```bash
+cd /opt/haiguitang
+git log --oneline -n 5
+git reset --hard <last_good_commit>
+sudo systemctl restart haiguitang
+curl -i http://127.0.0.1:8000/health
+```
+
+如需回滚数据库：
+
+```bash
+cd /opt/haiguitang
+cp haiguitang.db.bak.<timestamp> haiguitang.db
+sudo systemctl restart haiguitang
+```
+
+### 9) （可选）使用 PM2
 
 项目仍保留 `ecosystem.config.js`，如你偏好 PM2 可继续使用：
 
