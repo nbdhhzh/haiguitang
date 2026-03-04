@@ -18,6 +18,10 @@ load_dotenv()
 
 app = FastAPI()
 
+@app.on_event("startup")
+def ensure_tables_exist():
+    Base.metadata.create_all(bind=engine)
+
 # CORS configuration
 origins = [
     "*", 
@@ -64,6 +68,10 @@ class RatingRequest(BaseModel):
     rating_logic: Optional[int] = 0
 
 # --- API Endpoints ---
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
 
 @app.post("/api/auth/login")
 def login(user_data: UserLogin, db: Session = Depends(get_db)):

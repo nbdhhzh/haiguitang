@@ -56,49 +56,154 @@ python server/main.py
 
 访问浏览器：`http://127.0.0.1:8000`
 
-## 📦 服务器部署指南
+## ☁️ 云端部署（Ubuntu + systemd + Nginx）
 
-推荐使用 Nginx 作为反向代理服务器。
+以下步骤适用于 Ubuntu 22.04/24.04 云主机（阿里云/腾讯云/AWS/GCP 等）。
 
-### 1. 使用 PM2 运行后端
+### 0) 准备
+
+- 已有一台可 SSH 登录的 Linux 云主机
+- 已开放安全组端口：`22`, `80`, `443`
+- （可选）已解析域名到该主机公网 IP
+
+### 1) 安装系统依赖
 
 ```bash
-# 安装 PM2
-npm install -g pm2
-
-# 启动服务
-pm2 start ecosystem.config.js
+sudo apt-get update
+sudo apt-get install -y python3 python3-pip python3-venv nginx
 ```
 
-### 2. 配置 Nginx
+### 2) 拉取代码并安装 Python 依赖
 
-编辑 Nginx 配置文件（通常位于 `/etc/nginx/sites-available/default` 或 `/etc/nginx/conf.d/haiguitang.conf`）：
-
-```nginx
-server {
-    listen 80;
-    server_name your_domain.com;  # 替换为你的域名或 IP
-
-    location / {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # 可选：静态文件缓存
-    location /static {
-        alias /path/to/haiguitang/server/static; # 替换为实际路径
-        expires 30d;
-    }
-}
-```
-
-重启 Nginx：
 ```bash
+sudo mkdir -p /opt/haiguitang
+sudo chown -R $USER:$USER /opt/haiguitang
+git clone <your-repo-url> /opt/haiguitang
+cd /opt/haiguitang
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r server/requirements.txt
+```
+
+### 3) 配置环境变量
+
+项目已提供 `.env.example`，直接复制：
+
+```bash
+cd /opt/haiguitang
+cp .env.example .env
+```
+
+编辑 `.env`，至少设置：
+
+```env
+OPENROUTER_API_KEY=sk-or-your-real-key
+DATABASE_URL=sqlite:///./haiguitang.db
+```
+
+> `DATABASE_URL` 不填时默认仍使用 `sqlite:///./haiguitang.db`。  
+> 应用启动时会自动建表，并提供健康检查接口：`/health`。
+
+### 4) 配置 systemd（推荐）
+
+仓库提供模板：`deploy/systemd/haiguitang.service`
+
+```bash
+sudo cp /opt/haiguitang/deploy/systemd/haiguitang.service /etc/systemd/system/haiguitang.service
+sudo systemctl daemon-reload
+sudo systemctl enable haiguitang
+sudo systemctl start haiguitang
+sudo systemctl status haiguitang --no-pager
+```
+
+本机健康检查：
+
+```bash
+curl -i http://127.0.0.1:8000/health
+```
+
+### 5) 配置 Nginx 反向代理
+
+仓库提供模板：`deploy/nginx/haiguitang.conf`
+
+```bash
+sudo cp /opt/haiguitang/deploy/nginx/haiguitang.conf /etc/nginx/sites-available/haiguitang
+```
+
+编辑该文件，把 `server_name your_domain_or_ip;` 改成你的域名或公网 IP，然后启用站点：
+
+```bash
+sudo ln -sf /etc/nginx/sites-available/haiguitang /etc/nginx/sites-enabled/haiguitang
 sudo nginx -t
 sudo systemctl restart nginx
+```
+
+### 6) 配置 HTTPS（Certbot）
+
+如果已绑定域名，建议立即启用 HTTPS：
+
+```bash
+sudo apt-get install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d your_domain.com
+```
+
+验证自动续期：
+
+```bash
+sudo certbot renew --dry-run
+```
+
+### 7) 常用排障命令
+
+```bash
+# 查看应用日志
+sudo journalctl -u haiguitang -f
+
+# 查看 Nginx 日志
+sudo tail -f /var/log/nginx/access.log
+sudo tail -f /var/log/nginx/error.log
+
+# 重启服务
+sudo systemctl restart haiguitang
+sudo systemctl restart nginx
+```
+
+### 8) 备份与回滚（建议）
+
+升级前建议先做 SQLite 文件备份：
+
+```bash
+cd /opt/haiguitang
+cp haiguitang.db "haiguitang.db.bak.$(date +%F-%H%M%S)"
+```
+
+若新版本异常，可快速回滚：
+
+```bash
+cd /opt/haiguitang
+git log --oneline -n 5
+git reset --hard <last_good_commit>
+sudo systemctl restart haiguitang
+curl -i http://127.0.0.1:8000/health
+```
+
+如需回滚数据库：
+
+```bash
+cd /opt/haiguitang
+cp haiguitang.db.bak.<timestamp> haiguitang.db
+sudo systemctl restart haiguitang
+```
+
+### 9) （可选）使用 PM2
+
+项目仍保留 `ecosystem.config.js`，如你偏好 PM2 可继续使用：
+
+```bash
+npm install -g pm2
+pm2 start ecosystem.config.js
+pm2 save
 ```
 
 ## 📂 项目结构

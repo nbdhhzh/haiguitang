@@ -1,0 +1,16 @@
+[Unit]
+Description=HaiGuiTang FastAPI service
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/haiguitang
+EnvironmentFile=/opt/haiguitang/.env
+ExecStart=/opt/haiguitang/.venv/bin/uvicorn server.main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
